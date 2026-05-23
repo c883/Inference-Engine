@@ -403,7 +403,7 @@ Successful execution reduces the stream size, handing off a structured array of 
   }
 ]
 ```
-### 5.5 — STAGE 5: Asset Capability Resolution (Exemption Gate)
+### 5.5 — STAGE 5: Asset Capability Resolution (Analysis Boundary Gate)
 
 #### 5.5.1 — Purpose
 To execute Gate 1 of the Performance Map classification logic and determine whether an asset is physically capable of supporting a correction in its current state, while validating verified administrative scope limits via the Exemption Gate.
@@ -418,15 +418,13 @@ The engine executes checks on each cluster in the following order:
 
 1. **The Exemption Gate:**
    * The engine scans for an explicit `capability_code == "EXEMPT_ASSET"`, initialized exclusively by explicit Facilitator confirmation at the Analysis Boundary Gate (never by automated text matching in Stage 1).
-   * **Action:** Hardcode operational runtime reduction hours to zero ($H_{\text{reduction}} = 0$) and map the node's `finding_pool` destination to `"baseline"`. The cluster completely bypasses downstream domain allocation, reach, and barrier analysis loops (Stages 6, 7, and 8) and routes directly to Stage 10 for metadata preservation as a documented operational baseline load.
+   * **Action:** Hardcode operational runtime reduction hours to zero ($H_{\text{reduction}} = 0$) and map the node's output target directly to the operational `"baseline"` pool. The cluster completely bypasses downstream domain allocation, reach, and barrier analysis loops (Stages 6, 7, and 8) and routes directly to Stage 10 for baseline metadata preservation.
 2. **Gate 1 Asset Capability Check:**
    * If `condition_enum == "DAMAGED"` or the field state indicates a structural hardware failure (e.g., control board fried, system locked ON), the node terminates at Gate 1. Set `assigned_domain = "Mechanical"`, `assigned_action_path = "Red"`, and advance directly to Stage 9 for replacement math calculations.
 3. **Standard Status Advancement:**
    * If the cluster does not carry an explicit `EXEMPT_ASSET` or `DAMAGED` restriction, set `pipeline_status = "gate1_passed"` and advance the cluster intact to Stage 6.
 
 #### 5.5.4 — Output Schema (Capability-Resolved Object)
-Example of a cluster packet that has triggered the Code 5 baseline short-circuit:
-
 ```json
 {
   "cluster_id": "cluster_nr_1101_lighting_display_accent",
@@ -442,21 +440,22 @@ Example of a cluster packet that has triggered the Code 5 baseline short-circuit
     "telemetry_decay_factor": 0.75
   },
   "capability_resolution": {
-    "capability_status": "RESOLVED_SHORT_CIRCUIT",
-    "capability_code": "CODE_5_EXEMPT_ASSET",
+    "pipeline_status": "EXEMPT_ASSET_SHORT_CIRCUIT",
+    "capability_code": "EXEMPT_ASSET",
     "forced_hours_reduction": 0,
     "bypass_engineering_gates": true
   },
   "validation_status": "CLEARED"
 }
 ```
+
 ### 5.6 — STAGE 6: Control Domain Allocation
 
 #### 5.6.1 — Purpose
 To categorize and map the exact mechanical, electrical, or behavioral control vector governing the equipment cluster. This stage establishes the structural boundaries of where a control intervention must physically take place (e.g., at the local wall plate versus a centralized breaker panel).
 
 #### 5.6.2 — Input Requirements
-This stage accepts equipment clusters that successfully cleared the Stage 5 capability gateway (`capability_status == "PASSED"`).
+This stage accepts equipment clusters that successfully cleared the Stage 5 capability gateway and carry an active `pipeline_status == "gate1_passed"`.
 
 #### 5.6.3 — Allocation & Weighting Logic
 The engine evaluates the cluster's context and the validated `why_not_enum` state to explicitly assign a `control_domain_type`. No assumptions are permitted; any unmapped infrastructure links force an immediate processing halt.
@@ -465,21 +464,16 @@ The engine evaluates the cluster's context and the validated `why_not_enum` stat
    * If `why_not_enum == "No Switch Present"`, the engine overrides any local occupant assumptions and binds the cluster to a branch circuit panel topology.
    * Set `control_domain_type = "CENTRAL_PANEL_LOOP"`.
    * The engine checks for a valid `associated_panel_id` injected during Stage 2. If the field is `null`, it trips `ERR_STAGE6_MISSING_PANEL_TOPOLOGY`, flags the cluster, and halts.
-
 2. **"Timer / Schedule" Mapping Rule:**
    * If `why_not_enum == "Timer / Schedule"`, the engine binds the control logic to centralized automation frameworks.
    * Set `control_domain_type = "AUTOMATED_SCHEDULE"`.
-
 3. **"YES" (Turned Off) Mapping Rule:**
    * If the underlying observation records resolved to `did_you_turn_off == "YES"`, the control vector is occupant-dependent.
    * Set `control_domain_type = "LOCAL_MANUAL_SWITCH"`.
-
 4. **Missing Infrastructure Check:**
    * If a cluster arrives with an unpopulated `resolved_control_domain` from Stage 2 and cannot be resolved by these rules, the engine sets `control_domain_type = null`, marks `validation_status = "FLAGGED"`, appends `ERR_STAGE6_CONTROL_DOMAIN_UNRESOLVED`, and terminates the execution path.
 
 #### 5.6.4 — Output Schema (Control-Allocated Object)
-Successful execution updates the cluster with its verified physical control boundaries:
-
 ```json
 {
   "cluster_id": "cluster_nr_1101_lighting_display_accent",
@@ -494,7 +488,7 @@ Successful execution updates the cluster with its verified physical control boun
     "telemetry_decay_factor": 1.0
   },
   "capability_resolution": {
-    "capability_status": "PASSED",
+    "pipeline_status": "gate1_passed",
     "capability_code": "FUNCTIONAL_OPTIMIZABLE"
   },
   "control_allocation": {
@@ -504,6 +498,7 @@ Successful execution updates the cluster with its verified physical control boun
   "validation_status": "CLEARED"
 }
 ```
+
 ### 5.7 — STAGE 7: Operational Reach Evaluation
 
 #### 5.7.1 — Purpose
