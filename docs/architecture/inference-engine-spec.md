@@ -1,4 +1,4 @@
-# Inference Engine Technical Specification
+# Inference Engine Technical Specification (v3.1 Production)
 
 ## SECTION 1 — Executive System Overview
 
@@ -26,8 +26,11 @@ flowchart LR
     UI -->|Raw JSON Payload| ENGINE
     ENGINE -.->|Processed Run Pool| UI
 ```
+
 ### 1.3 — Operational Boundaries
 The engine does not utilize machine learning, predictive heuristics, or stochastic estimation. Every output state is a direct, traceable function of its inputs and fixed engineering constants. If the engine encounters an incomplete data state that cannot be resolved through predefined fallback rules, it is structurally mandated to halt processing for that node rather than generate an assumed value.
+
+---
 
 ## SECTION 2 — Core Design Principles
 
@@ -39,7 +42,7 @@ The engine operates on a mandate of complete explicit verification. If data is a
 * Utilizing historical trends to fill missing telemetry or structural metrics.
 * Inferring control layers based on asset types (e.g., assuming a light fixture is on a timer simply because it is located in a retail zone).
 
-If a value is missing or unverified, the engine flags the record as `FLAGGED` and halts downstream math calculations for that node.
+If a value is missing or unverified, the engine flags the record as `FLAGGED` and halts downstream math calculations for that node unless a centralized, auditable system baseline fallback rule is explicitly declared.
 
 ### 2.2 — Fail-Fast Pipeline Isolation
 Data errors must never propagate down the pipeline. The sequence enforces a hard "validate-before-transform" gate at every stage interface. 
@@ -51,6 +54,8 @@ Data errors must never propagate down the pipeline. The sequence enforces a hard
 Data transformation throughout the 10 stages is entirely additive. The engine is structurally forbidden from overwriting raw incoming field data or early-stage context metadata. 
 * As a payload advances through successive stages, the engine appends nested telemetry filters, capability arrays, and physics calculations into isolated wrapper objects. 
 * This guarantees a transparent, deterministic audit trail from the ultimate dollar savings pool in Stage 10 back to the exact physical observation row captured by the field surveyor.
+
+---
 
 ## SECTION 3 — Global Data Schemas
 
@@ -111,10 +116,12 @@ The basic unit of data injected into the engine from the field discovery interfa
   ]
 }
 ```
-## 3.2 — Validation Constraint Logic
-Conditional Enforcement Rule: While why_not_enum allows a null type, the API gateway evaluation layer dictates that if did_you_turn_off == "NO", a non-null string match from the allowed array must be present. If why_not_enum arrives as null while did_you_turn_off == "NO", processing fails the schema contract and drops before entering Stage 1.
 
-Taxonomy Alignment: The asset_sub_class value must match the global engineering dictionary exactly. Case sensitivity is strictly enforced (e.g., "LIGHTING_DISPLAY_ACCENT" is valid; "Lighting_Display_Accent" will trigger an instant type-match termination).
+### 3.2 — Validation Constraint Logic
+* **Conditional Enforcement Rule:** While `why_not_enum` allows a null type, the API gateway evaluation layer dictates that if `did_you_turn_off == "NO"`, a non-null string match from the allowed array must be present. If `why_not_enum` arrives as null while `did_you_turn_off == "NO"`, processing fails the schema contract and drops before entering Stage 1.
+* **Taxonomy Alignment:** The `asset_sub_class` value must match the global engineering dictionary exactly. Case sensitivity is strictly enforced (e.g., `"LIGHTING_DISPLAY_ACCENT"` is valid; `"Lighting_Display_Accent"` will trigger an instant type-match termination).
+
+---
 
 ## SECTION 4 — 10-STAGE PIPELINE
 
@@ -122,9 +129,9 @@ The Inference Engine processes observations through a rigid 10-stage sequential 
 
 1. **STAGE 1** — Ingestion and Normalization
 2. **STAGE 2** — Global Portfolio Context (Macro Baseline Container)
-3. **STAGE 3** — Localized Telemetry Context Filter
+3. **STAGE 3** — Localized Telemetry Context & Runtime Modification
 4. **STAGE 4** — Structural Spatial Clustering
-5. **STAGE 5** — Asset Capability Resolution
+5. **STAGE 5** — Asset Capability Resolution (Analysis Boundary Gate)
 6. **STAGE 6** — Control Domain Allocation
 7. **STAGE 7** — Operational Reach Evaluation
 8. **STAGE 8** — Barrier Nature Assignment
@@ -154,8 +161,8 @@ flowchart TD
 
     %% --- LAYER 2: GLOBAL CONTEXT INGESTION ---
     subgraph L2 [2. MACRO BASELINE CONTAINER]
-        FormCheck -->|YES| S2[Stage 2: Inject Global Context]
-        D[(Engagement Profile)] --> S2
+        FormCheck -->|YES| S2[Stage 2: Inject Global Context & Fallback Defaults]
+        D[("Engagement Profile / Appendix A")] --> S2
     end
     style L2 fill:#fffaf0,stroke:#dd6b20,stroke-width:1px
 
@@ -171,10 +178,10 @@ flowchart TD
         S4 --> S5{Stage 5: Analysis Boundary Gate}
         
         %% Short Circuits
-        S5 -->|capability_code == NECESSARY_BASELOAD| SC_Base[Hardcode Reduction Hours to 0]
+        S5 -->|pipeline_status == EXEMPT_ASSET_SHORT_CIRCUIT| SC_Base[Hardcode Reduction Hours to 0]
         
         %% Normal Tree & Logic Splits
-        S5 -->|Otherwise| S6[Stage 6: Control Domain Allocation]
+        S5 -->|pipeline_status == gate1_passed| S6[Stage 6: Control Domain Allocation]
         
         S6 --> S7[Stage 7: Operational Reach Evaluation]
         S7 -->|Reach == YES| Path_Green[Assign Green Token]
@@ -193,18 +200,21 @@ flowchart TD
         Path_Yellow --> S9
         Path_Red --> S9
         
-        S9 --> S10[Stage 10: Output Sorting Matrix]
+        S9 --> S10[Stage 10: Flat Tagged Optimization List]
         
         S10 --> Check{Total Savings Exceed Portfolio Cap?}
         Check -->|YES| Err_2[Trigger Calibration Error Flag]
-        Check -->|NO| Handoff{Sort by Savings Magnitude & Thresholds}
+        Check -->|NO| Handoff[Emit Flat Array with Boolean Filter Flags]
         
-        Handoff --> Pool1[(Guaranteed Savings Pool)]
-        Handoff --> Pool2[(Added Value Opportunity Pool)]
-        Handoff --> Pool3[(Documented Baseline Pool)]
+        Handoff --> Pool1[is_guaranteed_saving == true]
+        Handoff --> Pool2[is_guaranteed_saving == false]
+        Handoff --> Pool3[is_exempt_baseline == true]
     end
     style L5 fill:#f0fff4,stroke:#38a169,stroke-width:1px
 ```
+
+---
+
 ## SECTION 5 — STAGE SPECIFICATIONS
 
 ### 5.1 — STAGE 1: Ingestion and Normalization
@@ -213,9 +223,7 @@ flowchart TD
 To ingest raw field observations from the mobile discovery interface, validate payload parameters, and normalize arbitrary text entries into strict system enums. If input verification fails, processing halts immediately before affecting data state.
 
 #### 5.1.2 — UI Dropdown Field Enforcements ("Why Not" Rule-Couplet)
-When a field observation record indicates that an asset was not deactivated by the surveyor (`did_you_turn_off == "NO"`), the ingestion API contract enforces an exact text string match against one of six allowed values. 
-
-The inference engine executes a deterministic data-routing sequence strictly bounded by these values:
+When a field observation record indicates that an asset was not deactivated by the surveyor (`did_you_turn_off == "NO"`), the ingestion API contract enforces an exact text string match against one of six allowed values.
 
 ```json
 {
@@ -237,65 +245,72 @@ The inference engine executes a deterministic data-routing sequence strictly bou
   "required": ["did_you_turn_off"]
 }
 ```
-#### 5.1.3 — Programmatic Routing Paths
 
+#### 5.1.3 — Programmatic Routing Paths
 The inference engine executes a deterministic data-routing sequence strictly bounded by the validated `why_not_enum` values:
 
 1. **"No Switch Present"**
    * **Target Route:** STAGE 6 — Control Domain Allocation
    * **Action:** Bypasses manual occupant routing; forces classification to a centralized circuit-level panel distribution loop.
-
 2. **"Requires Permission"**
    * **Target Route:** STAGE 5 — Asset Capability Resolution
-   * **Action:** Evaluates asset under the critical capability criteria profile. If verified as operational baseload, operational runtime reduction hours ($H_{\text{reduction}}$) are hard-coded to zero.
-
+   * **Action:** Functions strictly as an assessment domain signal and credential gap. It routes to Stage 5 for capability mapping context rather than triggering an auto-zero or automated short-circuit calculation.
 3. **"Occupancy Sensor"**
-   * **Target Route:** STAGE 3 — Localized Telemetry Context Filter
-   * **Action:** Injects a local sensor timeout multiplier variable to modulate mathematical runtime baselines.
-
+   * **Target Route:** STAGE 3 — Localized Telemetry Context & Runtime Modification
+   * **Action:** Identifies a localized hardware sweep control and routes to Stage 3 to apply an automated runtime modifier adjustment.
 4. **"Timer / Schedule"**
    * **Target Route:** STAGE 6 — Control Domain Allocation
    * **Action:** Links asset domain metrics directly to a mechanical timeclock or automated building automation schedule profile.
-
 5. **"Control Not Found"**
    * **Target Route:** STAGE 7 — Operational Reach Evaluation
-   * **Action:** Triggers the P7 Default operational restriction rule, forcing reach metrics to `UNKNOWN` and pushing the asset directly to Stage 8.
+   * **Action:** Triggers the P7 Default operational visibility restriction rule, forcing immediate reach evaluation metrics to `"NO"` and advancing the packet to Stage 8.
+6. **"Other"**
+   * **Target Route:** STAGE 10 — Finding Pool Distribution and Output Validation
+   * **Action:** Categorizes the record as an unresolved outlier anomaly. Affixes an immutable flag forcing a manual engineering review before report compilation, isolating it completely from automated saving algorithms.
+
+---
 
 ### 5.2 — STAGE 2: Global Portfolio Context (Macro Baseline Container)
 
 #### 5.2.1 — Purpose
-To inject macro-environmental boundaries, localized utility rate structures, and pre-onboarded infrastructure baseline data into the validated observation stream. This stage executes a strict database-join cascade to reconcile physical drawings with field observations.
+To inject macro-environmental boundaries, localized utility rate structures, and pre-onboarded infrastructure baseline data into the validated observation stream. This stage executes a database-join cascade to reconcile drawings with field states, falling back to auditable default parameters if site documentation is incomplete.
 
 #### 5.2.2 — Input Requirements
 This stage accepts the validated JSON payload from Stage 1 and maps it against two static relational tables initialized during project onboarding:
-
-1. **Table A: Pre-Onboarding Infrastructure Baseline** (Compiled from as-built engineering drawings, panel schedules, and BMS sequences).
-2. **Table B: Facilitator Site Walk Overrides** (Populated via the exception-driven validation card interface).
+1. **Table A: Pre-Onboarding Infrastructure Baseline** (As-built engineering drawings, panel schedules, and BMS sequences).
+2. **Table B: Facilitator Site Walk Overrides** (Populated via the validation card interface).
+3. **Appendix A: Centralized Control Assumption Defaults Matrix** (System-level fallback values based on taxonomy).
 
 #### 5.2.3 — Ingestion Logic Hierarchy (The Cascade Rule)
-To resolve the infrastructure context properties without relying on implicit system assumptions, the engine executes a strict, top-down fallback cascade. It is prohibited from guessing if data is absent across all data assets.
+To resolve the infrastructure context properties while ensuring the pipeline can proceed with progress calculations without throwing structural compilation errors, the engine executes a strict, top-down fallback cascade:
 
 ```text
 Step 1: Query Table B for an active "Facilitator Override" matching the target space_id + asset_sub_class.
-        ├── IF FOUND: Set resolved_control_domain = observed_control_enum. Proceed to Stage 3.
+        ├── IF FOUND: Set resolved_control_domain = observed_control_enum.
+        │             Set is_default_applied = false. Proceed to Stage 3.
         └── IF NOT FOUND: Proceed to Step 2.
 
 Step 2: Query Table A for a "Pre-Onboarding Baseline" matching the target space_id + asset_sub_class.
-        ├── IF FOUND: Set resolved_control_domain = doc_control_enum. Proceed to Stage 3.
+        ├── IF FOUND: Set resolved_control_domain = doc_control_enum.
+        │             Set is_default_applied = false. Proceed to Stage 3.
         └── IF NOT FOUND: Proceed to Step 3.
 
-Step 3: Force Resolution to NULL.
-        ├── Set resolved_control_domain = null
-        ├── Set validation_status = FLAGGED
-        └── Append ERR_STAGE2_CONTROL_DATA_MISSING to payload log. Halt pipeline execution.  
+Step 3: Query Appendix A for a Centralized Control Default matching the target asset_sub_class taxonomy.
+        ├── IF FOUND: Set resolved_control_domain = fallback_control_enum.
+        │             Set is_default_applied = true.
+        │             Set validation_status = "CLEARED_WITH_DEFAULTS". Proceed to Stage 3.
+        └── IF NOT FOUND: Proceed to Step 4 (Ultimate Global Catch-All).
 
-
-6. **"Other"**
-   * **Target Route:** STAGE 10 — Finding Pool Distribution and Output Validation
-   * **Action:** Categorizes record as an unresolved outlier anomaly. Affixes an immutable flag forcing a manual engineering review before report compilation.
+Step 4: Execute Ultimate Global Catch-All Rule for unclassified/unknown assets.
+        ├── Action: Set resolved_control_domain = "LOCAL_MANUAL_SWITCH".
+        │           Set is_default_applied = true.
+        │           Set source_documentation_ref = "GLOBAL_CATCH_ALL_FALLBACK".
+        │           Set validation_status = "RECONCILIATION_REQUIRED".
+        └── Result: Payload clears Stage 2 with 100% throughput. Proceed to Stage 3.
 ```
-#### 5.2.4 - Output Schema (Context-Injected Node)
-Successful execution outputs an augmented data packet containing both local field counts and global portfolio constraints:
+
+#### 5.2.4 — Output Schema (Context-Injected Node)
+Successful execution outputs an augmented data packet containing local field counts, global constraints, and default tracking trackers:
 ```json
 {
   "space_id": "NR-1101",
@@ -304,13 +319,17 @@ Successful execution outputs an augmented data packet containing both local fiel
   "global_context": {
     "blended_utility_rate_kwh": 0.318,
     "portfolio_spend_cap_kwh": 2400000,
-    "resolved_control_domain": "BMS_RELAY_PANEL",
+    "resolved_control_domain": "LOCAL_MANUAL_SWITCH",
     "associated_panel_id": "BMS-P3-ZONE2",
-    "source_documentation_ref": "E-104-REV2"
+    "source_documentation_ref": "APPENDIX_A_FALLBACK",
+    "is_default_applied": true
   },
-  "validation_status": "CLEARED"
+  "validation_status": "CLEARED_WITH_DEFAULTS"
 }
 ```
+
+---
+
 ### 5.3 — STAGE 3: Localized Telemetry Context & Runtime Modification
 
 #### 5.3.1 — Purpose
@@ -325,18 +344,15 @@ The presence of local automated hardware or real-time presence signals alters ba
 1. **Live Telemetry Context Filters (Owls & Bulldogs):**
    * **Owl Processing:** If `owl_count` > 0 for a room, reduce the confidence score for illicit-load findings (default: -0.20 per Owl observed) and apply an hours adjustment to `H_reduction` based on irregular after-hours presence frequency. Context signals modify assumptions; they do not suppress findings.
    * **Bulldog Processing:** Evaluates non-occupant workers by role type (Security, Cleaning, Contractor, Unknown) to apply time-bound confidence reductions to affected floors or zones during their active influence windows without deleting findings.
-
 2. **Control-Based Runtime Modifiers (Occupancy Sensors):**
    * If `why_not_enum == "Occupancy Sensor"`, the engine recognizes that an automated local hardware sweep control is active rather than a continuous live tracking stream. It queries the system database for the site's verified sensor timeout sweep constant ($F_{\text{telemetry}}$).
    * If the constant is present, it is mapped to the asset node as `telemetry_decay_factor` to scale the downstream potential waste-runtime window (e.g., a constant of `0.75` accounting for a 25% reduction in unmanaged runtime due to integrated sensor cycling).
    * If the sensor constant is missing from the portfolio database configuration, the engine is prohibited from assuming an arbitrary default value. Set `telemetry_decay_factor = null`, mark `validation_status = "FLAGGED"`, log `ERR_STAGE3_MISSING_SENSOR_CONSTANT`, and terminate processing.
-
 3. **Standard Baseline Default Rule:**
    * For observations where `why_not_enum` does not equal `"Occupancy Sensor"`, no automated runtime adjustments are applied at this layer. Set `telemetry_decay_factor = 1.0` and preserve the default unmanaged waste hour constant asset assumptions intact.
 
 #### 5.3.4 — Output Schema (Telemetry-Filtered Node)
 Successful execution appends the computed runtime modifier value directly to the tracking metadata wrapper:
-
 ```json
 {
   "space_id": "NR-1101",
@@ -345,24 +361,28 @@ Successful execution appends the computed runtime modifier value directly to the
   "global_context": {
     "blended_utility_rate_kwh": 0.318,
     "portfolio_spend_cap_kwh": 2400000,
-    "resolved_control_domain": "BMS_RELAY_PANEL",
+    "resolved_control_domain": "LOCAL_MANUAL_SWITCH",
     "associated_panel_id": "BMS-P3-ZONE2",
-    "source_documentation_ref": "E-104-REV2"
+    "source_documentation_ref": "APPENDIX_A_FALLBACK",
+    "is_default_applied": true
   },
   "telemetry_filter": {
-    "telemetry_decay_factor": 0.75,
-    "applied_signal_source": "why_not_enum_occupancy_sensor"
+    "telemetry_decay_factor": 1.0,
+    "applied_signal_source": "standard_baseline_default"
   },
-  "validation_status": "CLEARED"
+  "validation_status": "CLEARED_WITH_DEFAULTS"
 }
 ```
+
+---
+
 ### 5.4 — STAGE 4: Structural Spatial Clustering
 
 #### 5.4.1 — Purpose
 To execute data array compression by grouping individual observation rows into unified spatial system clusters. The engine aggregates data to eliminate duplicate computation loops while preserving unique lineage back to the raw field entries.
 
 #### 5.4.2 — Input Requirements
-This stage accepts a stream or array of individual telemetry-filtered nodes from Stage 3. 
+This stage accepts a stream or array of individual telemetry-filtered nodes from Stage 3.
 
 #### 5.4.3 — Clustering Mechanics & Boundary Rules
 The clustering loop is completely deterministic and operates on a strict composite key constraint. It executes according to the following mathematical grouping logic:
@@ -371,19 +391,16 @@ The clustering loop is completely deterministic and operates on a strict composi
    * Observations are grouped if and only if they share an identical **`space_id`** AND an identical **`asset_sub_class`**.
    * If two observations share the same `space_id` but have different `asset_sub_class` taxonomies, they must be split into separate system clusters.
    * Cross-room or cross-zone spatial blending is strictly prohibited.
-
 2. **Aggregation Agglomeration:**
    * For matching nodes, the totalized count ($C_{\text{cluster}}$) is calculated as the sum of all individual field counts:
      $$C_{\text{cluster}} = \sum_{i=1}^{n} C_i$$
    * Where $C_i$ represents the individual `field_count` value for node $i$.
    * Individual `observation_id` string flags are aggregated into a flat tracking array (`source_observation_ids`) to preserve data lineage for downstream audits.
-
 3. **Context Reconciliation:**
    * If any matching observations contain conflicting `global_context` attributes (e.g., mismatched panel IDs for the same asset class in the same room), the engine cannot select an average or a majority. Execution halts instantly, flagging the entire spatial group as `FLAGGED` with error code `ERR_STAGE4_SPATIAL_CONTEXT_CONFLICT`.
 
 #### 5.4.4 — Output Schema (Unified Cluster Object)
 Successful execution reduces the stream size, handing off a structured array of unique system clusters:
-
 ```json
 [
   {
@@ -395,14 +412,18 @@ Successful execution reduces the stream size, handing off a structured array of 
     "aggregated_context": {
       "blended_utility_rate_kwh": 0.318,
       "portfolio_spend_cap_kwh": 2400000,
-      "resolved_control_domain": "BMS_RELAY_PANEL",
+      "resolved_control_domain": "LOCAL_MANUAL_SWITCH",
       "associated_panel_id": "BMS-P3-ZONE2",
-      "telemetry_decay_factor": 0.75
+      "telemetry_decay_factor": 1.0,
+      "is_default_applied": true
     },
-    "validation_status": "CLEARED"
+    "validation_status": "CLEARED_WITH_DEFAULTS"
   }
 ]
 ```
+
+---
+
 ### 5.5 — STAGE 5: Asset Capability Resolution (Analysis Boundary Gate)
 
 #### 5.5.1 — Purpose
@@ -412,503 +433,4 @@ To execute Gate 1 of the Performance Map classification logic and determine whet
 This stage accepts the unified spatial cluster arrays from Stage 4 and evaluates asset condition parameters alongside the active session's administrative boundary configurations.
 
 #### 5.5.3 — Resolution Sequence & The Exemption Gate
-The engine is strictly prohibited from inferring continuous baseline states or mechanical capacity constraints from surveyor operational session limitations like `why_not_enum == "Requires Permission"`. This response indicates a boundary domain signal and a surveyor credential gap, not a structural baseload indicator.
-
-The engine executes checks on each cluster in the following order:
-
-1. **The Exemption Gate:**
-   * The engine scans for an explicit `capability_code == "EXEMPT_ASSET"`, initialized exclusively by explicit Facilitator confirmation at the Analysis Boundary Gate (never by automated text matching in Stage 1).
-   * **Action:** Hardcode operational runtime reduction hours to zero ($H_{\text{reduction}} = 0$) and map the node's output target directly to the operational `"baseline"` pool. The cluster completely bypasses downstream domain allocation, reach, and barrier analysis loops (Stages 6, 7, and 8) and routes directly to Stage 10 for baseline metadata preservation.
-2. **Gate 1 Asset Capability Check:**
-   * If `condition_enum == "DAMAGED"` or the field state indicates a structural hardware failure (e.g., control board fried, system locked ON), the node terminates at Gate 1. Set `assigned_domain = "Mechanical"`, `assigned_action_path = "Red"`, and advance directly to Stage 9 for replacement math calculations.
-3. **Standard Status Advancement:**
-   * If the cluster does not carry an explicit `EXEMPT_ASSET` or `DAMAGED` restriction, set `pipeline_status = "gate1_passed"` and advance the cluster intact to Stage 6.
-
-#### 5.5.4 — Output Schema (Capability-Resolved Object)
-```json
-{
-  "cluster_id": "cluster_nr_1101_lighting_display_accent",
-  "space_id": "NR-1101",
-  "asset_sub_class": "LIGHTING_DISPLAY_ACCENT",
-  "total_cluster_count": 14,
-  "source_observation_ids": ["raw_83", "raw_104"],
-  "aggregated_context": {
-    "blended_utility_rate_kwh": 0.318,
-    "portfolio_spend_cap_kwh": 2400000,
-    "resolved_control_domain": "BMS_RELAY_PANEL",
-    "associated_panel_id": "BMS-P3-ZONE2",
-    "telemetry_decay_factor": 0.75
-  },
-  "capability_resolution": {
-    "pipeline_status": "EXEMPT_ASSET_SHORT_CIRCUIT",
-    "capability_code": "EXEMPT_ASSET",
-    "forced_hours_reduction": 0,
-    "bypass_engineering_gates": true
-  },
-  "validation_status": "CLEARED"
-}
-```
-
-### 5.6 — STAGE 6: Control Domain Allocation
-
-#### 5.6.1 — Purpose
-To categorize and map the exact mechanical, electrical, or behavioral control vector governing the equipment cluster. This stage establishes the structural boundaries of where a control intervention must physically take place (e.g., at the local wall plate versus a centralized breaker panel).
-
-#### 5.6.2 — Input Requirements
-This stage accepts equipment clusters that successfully cleared the Stage 5 capability gateway and carry an active `pipeline_status == "gate1_passed"`.
-
-#### 5.6.3 — Allocation & Weighting Logic
-The engine evaluates the cluster's context and the validated `why_not_enum` state to explicitly assign a `control_domain_type`. No assumptions are permitted; any unmapped infrastructure links force an immediate processing halt.
-
-1. **"No Switch Present" Mapping Rule:**
-   * If `why_not_enum == "No Switch Present"`, the engine overrides any local occupant assumptions and binds the cluster to a branch circuit panel topology.
-   * Set `control_domain_type = "CENTRAL_PANEL_LOOP"`.
-   * The engine checks for a valid `associated_panel_id` injected during Stage 2. If the field is `null`, it trips `ERR_STAGE6_MISSING_PANEL_TOPOLOGY`, flags the cluster, and halts.
-2. **"Timer / Schedule" Mapping Rule:**
-   * If `why_not_enum == "Timer / Schedule"`, the engine binds the control logic to centralized automation frameworks.
-   * Set `control_domain_type = "AUTOMATED_SCHEDULE"`.
-3. **"YES" (Turned Off) Mapping Rule:**
-   * If the underlying observation records resolved to `did_you_turn_off == "YES"`, the control vector is occupant-dependent.
-   * Set `control_domain_type = "LOCAL_MANUAL_SWITCH"`.
-4. **Missing Infrastructure Check:**
-   * If a cluster arrives with an unpopulated `resolved_control_domain` from Stage 2 and cannot be resolved by these rules, the engine sets `control_domain_type = null`, marks `validation_status = "FLAGGED"`, appends `ERR_STAGE6_CONTROL_DOMAIN_UNRESOLVED`, and terminates the execution path.
-
-#### 5.6.4 — Output Schema (Control-Allocated Object)
-```json
-{
-  "cluster_id": "cluster_nr_1101_lighting_display_accent",
-  "space_id": "NR-1101",
-  "asset_sub_class": "LIGHTING_DISPLAY_ACCENT",
-  "total_cluster_count": 14,
-  "source_observation_ids": ["raw_83", "raw_104"],
-  "aggregated_context": {
-    "blended_utility_rate_kwh": 0.318,
-    "portfolio_spend_cap_kwh": 2400000,
-    "associated_panel_id": "BMS-P3-ZONE2",
-    "telemetry_decay_factor": 1.0
-  },
-  "capability_resolution": {
-    "pipeline_status": "gate1_passed",
-    "capability_code": "FUNCTIONAL_OPTIMIZABLE"
-  },
-  "control_allocation": {
-    "control_domain_type": "CENTRAL_PANEL_LOOP",
-    "control_layer_validated": true
-  },
-  "validation_status": "CLEARED"
-}
-```
-
-### 5.7 — STAGE 7: Operational Reach Evaluation
-
-#### 5.7.1 — Purpose
-To evaluate whether the operating entity possesses the contractual, legal, or logistical authority—termed "operational reach"—to execute an intervention on the allocated control domain. This stage separates easily accessible changes from those blocked by organizational boundaries.
-
-#### 5.7.2 — Input Requirements
-This stage accepts equipment clusters that successfully completed Stage 6 (`control_layer_validated == true`).
-
-#### 5.7.3 — Reach Evaluation & The P7 Default Rule
-The engine checks organizational authorization logs and the field data to resolve the `operational_reach_status`. Implicit assumptions are strictly forbidden.
-
-1. **The P7 Default Rule ("Control Not Found"):**
-   * If the cluster contains any underlying observation records where `why_not_enum == "Control Not Found"`, the engine triggers the **P7 Default Rule**.
-   * **The Logic:** Because the physical control mechanism cannot be located by the field team, the engine determines that the client possesses no immediate operational visibility or reach over the asset.
-   * **Action:** Force `operational_reach_status = "NO"`. The cluster is barred from advancing directly to a green pathway and is routed immediately to **STAGE 8 — Barrier Nature Assignment**.
-
-2. **Standard Reach Validation:**
-   * If `why_not_enum` does not contain "Control Not Found", the engine queries the site's vendor contract database for the allocated `control_domain_type` (resolved in Stage 6).
-   * **Reach == YES:** If the contract profiles show the client has in-house maintenance authority or an active service contract to alter the control loop, set `operational_reach_status = "YES"`. The cluster skips Stage 8 and maps directly to the **Green Behavioral Token** path.
-   * **Reach == NO:** If the control loop belongs to an uncooperative landlord, a third-party base-building system, or a vendor with an `UNKNOWN` relationship status, set `operational_reach_status = "NO"` and route the cluster to Stage 8.
-
-#### 5.7.4 — Output Schema (Reach-Evaluated Object)
-Example of an asset cluster where the control mechanism was missing in the field, triggering the P7 Default Rule:
-
-```json
-{
-  "cluster_id": "cluster_nr_1101_lighting_display_accent",
-  "space_id": "NR-1101",
-  "asset_sub_class": "LIGHTING_DISPLAY_ACCENT",
-  "total_cluster_count": 14,
-  "source_observation_ids": ["raw_83", "raw_104"],
-  "control_allocation": {
-    "control_domain_type": "CENTRAL_PANEL_LOOP",
-    "control_layer_validated": true
-  },
-  "operational_reach": {
-    "operational_reach_status": "NO",
-    "reach_evaluation_code": "P7_RULE_CONTROL_NOT_FOUND",
-    "skip_barrier_analysis": false
-  },
-  "validation_status": "CLEARED"
-}
-```
-### 5.8 — STAGE 8: Barrier Nature Assignment
-
-#### 5.8.1 — Purpose
-To execute Gate 4 of the Performance Map classification logic, differentiating Yellow from Red action paths for finding clusters that failed the Stage 7 operational reach evaluation.
-
-#### 5.8.2 — Input Requirements
-This stage processes capable equipment clusters where `operational_reach_status == "NO"`.
-
-#### 5.8.3 — Barrier Classification Tree (Gate 4 Branching)
-The engine is prohibited from auto-assigning a structural capital deficiency on the field observation string `why_not_enum == "Control Not Found"`. A missing control during a session indicates a localized visibility limitation and must branch dynamically based on post-session engineering investigation criteria:
-
-1. **Red Pathway Token (Structural / Capital Barriers):**
-   * **Criteria:** The optimization is blocked by an absolute absence of physical infrastructure, hidden distribution routing, or hard real estate boundaries. Resolution requires hardware procurement, new vendor engagement, or capital expenditure.
-   * **Trigger Conditions:** The `why_not_enum` value resolves to `"Control Not Found"`, AND a post-session engineering review explicitly verifies that the physical control infrastructure is absent and requires capital installation.
-   * **Action:** Assign `assigned_action_path = "Red"`. Set the operational category wrapper to `STRUCTURAL_INFRASTRUCTURE_BARRIER`.
-2. **Yellow Pathway Token (Operational / Logic / Coordination Barriers):**
-   * **Criteria:** The optimization block is administrative, programmatic, or a coordination gap. Resolution requires logic reconfiguration, layout tracing, or tenant-coordination loops without capital hardware procurement.
-   * **Trigger Conditions:**
-     * `why_not_enum == "Timer / Schedule"`
-     * `why_not_enum == "No Switch Present"` (where branch control loops exist at a panel circuit level but require administrative coordination).
-     * The `why_not_enum` value resolves to `"Control Not Found"`, but post-session engineering review confirms the control loop physically exists and was simply unlocated by the surveyor during the session.
-   * **Action:** Assign `assigned_action_path = "Yellow"`. Set the operational category wrapper to `COORDINATION_GAP_BARRIER` or `LOGIC_CONFIGURATION_BARRIER`.
-
-#### 5.8.4 — Output Schema (Barrier-Assigned Object)
-Example of a cluster assigned a Red Token path due to unmapped control systems:
-
-```json
-{
-  "cluster_id": "cluster_nr_1101_lighting_display_accent",
-  "space_id": "NR-1101",
-  "asset_sub_class": "LIGHTING_DISPLAY_ACCENT",
-  "control_allocation": {
-    "control_domain_type": "CENTRAL_PANEL_LOOP"
-  },
-  "operational_reach": {
-    "operational_reach_status": "NO",
-    "reach_evaluation_code": "P7_RULE_CONTROL_NOT_FOUND"
-  },
-  "barrier_assignment": {
-    "pathway_token": "RED",
-    "barrier_operational_category": "STRUCTURAL_INFRASTRUCTURE_BARRIER",
-    "engineering_override_required": true
-  },
-  "validation_status": "CLEARED"
-}
-```
-### 5.9 — STAGE 9: Measure Generation and Savings Calculation
-
-#### 5.9.1 — Purpose
-To run the deterministic engineering physics core. This stage calculates the baseline power load, annual unmanaged waste run-time hours, net energy reduction, and financial impacts of the proposed intervention. All equations are strictly bounded by asset taxonomy constants and the telemetry decay values assigned upstream.
-
-#### 5.9.2 — Input Requirements
-This stage accepts all processed equipment clusters. This includes both active optimization candidates (Green, Yellow, and Red tokens) and short-circuited baseload entries.
-
-#### 5.9.3 — Physics Calculations & Deterministic Formulas
-The engine runs a four-step calculation sequence using fixed constants mapped to the specific `asset_sub_class`. No historical averaging or statistical smoothing is permitted.
-
-##### Step 1: Connected Cluster Load ($P_{\text{load}}$)
-The total electrical load for the system cluster is calculated by multiplying the aggregated count by the baseline fixture wattage constant ($W_{\text{fixture}}$) defined in the system asset catalog:
-
-$$P_{\text{load}} = (C_{\text{cluster}} \times W_{\text{fixture}}) \times 10^{-3}$$
-
-* $P_{\text{load}}$ = Total connected cluster load in kilowatts (kW).
-* $C_{\text{cluster}}$ = Total item count (`total_cluster_count`).
-* $W_{\text{fixture}}$ = Sub-class equipment baseline wattage (e.g., $50\text{W}$ for Halogen Track, $15\text{W}$ for LED Can).
-
-##### Step 2: Realized Operational Hours Reduction ($H_{\text{reduction}}$)
-The engine computes the potential waste-hour compression window.
-* If `capability_code` == `"CODE_5_NECESSARY_BASELOAD"`, the reduction hours are hardcoded:
-  $$H_{\text{reduction}} = 0$$
-* For optimizable paths, the engine reads the default sub-class unmanaged waste hour constant ($H_{\text{waste}}$) and scales it by the telemetry decay multiplier variable ($F_{\text{telemetry}}$):
-  $$H_{\text{reduction}} = H_{\text{waste}} \times F_{\text{telemetry}}$$
-
-* $H_{\text{reduction}}$ = Realized annual hours reduction.
-* $H_{\text{waste}}$ = Default sub-class unmanaged waste hour constant.
-* $F_{\text{telemetry}}$ = Telemetry decay factor variable derived from `telemetry_decay_factor`.
-
-##### Step 3: Annualized Energy Savings ($E_{\text{savings}}$)
-Net electrical consumption reduction is calculated as a direct product of load and time:
-
-$$E_{\text{savings}} = P_{\text{load}} \times H_{\text{reduction}}$$
-
-* $E_{\text{savings}}$ = Annualized energy savings in kilowatt-hours (kWh).
-
-##### Step 4: Financial Savings Generation ($S_{\text{financial}}$)
-The ultimate localized fiscal impact uses the specific blended rate ($R_{\text{utility}}$) injected during Stage 2:
-
-$$S_{\text{financial}} = E_{\text{savings}} \times R_{\text{utility}}$$
-
-* $S_{\text{financial}}$ = Realized annual cost reduction in gross USD.
-* $R_{\text{utility}}$ = Localized blended utility rate (`blended_utility_rate_kwh`).
-
-#### 5.9.4 — Output Schema (Calculated Savings Object)
-The cluster object is updated with the complete deterministic physics payload:
-
-```json
-{
-  "cluster_id": "cluster_nr_1101_lighting_display_accent",
-  "space_id": "NR-1101",
-  "asset_sub_class": "LIGHTING_DISPLAY_ACCENT",
-  "barrier_assignment": {
-    "pathway_token": "RED",
-    "barrier_operational_category": "STRUCTURAL_INFRASTRUCTURE_BARRIER"
-  },
-  "physics_calculations": {
-    "calculated_p_load_kw": 0.70,
-    "calculated_h_reduction": 3500.0,
-    "annual_energy_savings_kwh": 2450.0,
-    "annual_financial_savings_usd": 779.10,
-    "math_execution_verified": true
-  },
-  "validation_status": "CLEARED"
-}
-```
-
-### 5.10 — STAGE 10: Finding Pool Distribution and Output Validation
-
-#### 5.10.1 — Purpose
-To validate aggregate outputs against macro portfolio limits and distribute verified findings into isolated reporting pools based on contractual thresholds before report compilation.
-
-#### 5.10.2 — Finding Pool Assignment (The Sorting Matrix)
-The engine is structurally forbidden from sorting findings into delivery pools based on their action path token color (Green, Yellow, Red). High-confidence behavioral Green findings are primary contract contributors, whereas tokenized capital findings may fall below validation tolerances. 
-
-Distribution is executed strictly via mathematical savings magnitude against the project significance floor:
-
-1. **Portfolio Consumption Cap Check:**
-   * The aggregate sum of all calculated finding savings cannot mathematically exceed the facility baseline bounds loaded in Stage 2. 
-   * If $\sum E_{\text{savings}} > \text{baseline\_kwh} \times \text{maximum\_savings\_ratio}$, trigger a baseline calibration error, log `ERR_STAGE10_PORTFOLIO_CAP_EXCEEDED`, and block delivery generation.
-2. **Pool Sorting Protocol:**
-   Cleanly validated clusters are distributed into three target arrays using the following mathematical significance sorting filters:
-   * **Guaranteed Savings Pool (`guarantee`):** Contains any calculated finding cluster—regardless of its action path color (Green, Yellow, or Red)—whose individual annualized energy savings meet or exceed the contract significance threshold defined in the `AnalysisBoundary` object:
-     $$E_{\text{savings}} \ge \text{guarantee\_significance\_floor\_kwh}$$
-   * **Added Value Opportunity Pool (`added_value`):** Contains valid active optimization clusters whose individual calculated savings fall completely below the significance floor ($E_{\text{savings}} < \text{guarantee\_significance\_floor\_kwh}$), classifying them as supplementary operational or coaching opportunities reported outside the contractual guarantee.
-   * **Documented Baseline Pool (`baseline`):** Contains all short-circuited clusters confirmed with the `EXEMPT_ASSET` code. Annualized savings are locked at zero, and the node is preserved with full metadata as a documented operational baseline load.
-
-#### 5.10.3 — Portfolio Validation & The Sorting Matrix
-The engine is strictly forbidden from routing findings based on token color designations (Green, Yellow, Red). High-confidence behavioral Green findings are primary contributors to contractual models, whereas certain tokenized findings may fall below validation tolerances. 
-
-Sorting is executed strictly via financial significance metrics:
-
-1. **Portfolio Spend Cap Boundary Check:**
-   * The engine totalizes the annualized energy savings across all processed clusters:
-     $$\text{Total Portfolio Savings} = \sum_{i=1}^{m} E_{\text{savings}, i}$$
-   * If the Total Portfolio Savings exceeds the pre-onboarded portfolio limit parameter (`portfolio_spend_cap_kwh`), a physical modeling calibration failure is declared. Mark the run status as `FAILED`, log `ERR_STAGE10_PORTFOLIO_CAP_EXCEEDED`, and block delivery generation.
-
-2. **The Sorting Matrix:**
-   Cleanly validated clusters are distributed into three target arrays using the following mathematical significance sorting filters:
-
-   * **Guaranteed Savings Pool:** Contains any calculated system cluster—regardless of token pathway color (Green, Yellow, or Red)—whose individual annualized savings magnitude completely satisfies or exceeds the contract's engineering floor:
-     $$E_{\text{savings}} \ge \text{guarantee\_significance\_floor\_kwh}$$
-   * **Added Value Opportunity Pool:** Contains valid active optimization clusters whose individual calculated savings fall completely below the contractual significance limit ($E_{\text{savings}} < \text{guarantee\_significance\_floor\_kwh}$), classifying them as secondary operational optimization or training opportunities.
-   * **Documented Baseline Pool:** Contains all short-circuited nodes tagged with capability state `RESOLVED_SHORT_CIRCUIT` (Code 5 Baseload). Annual energy savings are locked at 0, preserving vital facility infrastructure records for baseline maintenance auditing.
-
-#### 5.10.4 — Output Schema (Master Distribution Object)
-The final delivered execution packet compiles the isolated pools into a single, clean JSON structure ready for generation handoff:
-
-```json
-{
-  "portfolio_run_id": "run_2026_05_north_wing",
-  "execution_timestamp": "2026-05-22T19:15:30Z",
-  "portfolio_validation": {
-    "total_calculated_savings_kwh": 2600.0,
-    "portfolio_spend_cap_kwh": 2400000.0,
-    "boundary_check_passed": true
-  },
-  "delivery_pools": {
-    "guaranteed_savings_pool": [
-      {
-        "cluster_id": "cluster_nr_1101_lighting_display_accent",
-        "space_id": "NR-1101",
-        "asset_sub_class": "LIGHTING_DISPLAY_ACCENT",
-        "pathway_token": "RED",
-        "annual_energy_savings_kwh": 2450.0,
-        "annual_financial_savings_usd": 779.10
-      }
-    ],
-    "added_value_pool": [
-      {
-        "cluster_id": "cluster_nr_1101_lighting_recessed_can",
-        "space_id": "NR-1101",
-        "asset_sub_class": "LIGHTING_RECESSED_CAN",
-        "pathway_token": "GREEN",
-        "annual_energy_savings_kwh": 150.0,
-        "annual_financial_savings_usd": 47.70
-      }
-    ],
-    "documented_baseline_pool": []
-  },
-  "isolated_review_bucket": []
-}
-
-```
-### 5.10 — STAGE 10: Finding Pool Distribution and Output Validation
-
-#### 5.10.1 — Purpose
-To execute macro portfolio-level boundary validation checks and sort fully calculated system clusters into isolated client-facing delivery pools. This stage acts as the ultimate quality assurance gate, intercepting processing anomalies and separating capital configuration assets from qualitative baseline records.
-
-#### 5.10.2 — Input Requirements
-This stage accepts the array of calculated system cluster objects from Stage 9. It requires access to the global portfolio constraints (`portfolio_spend_cap_kwh`) injected during Stage 2.
-
-#### 5.10.3 — Portfolio Validation & Sorting Rules
-
-Before populating the output arrays, the engine processes the completed cluster stream through two strict algorithmic validation filters:
-
-1. **Portfolio Spend Cap Boundary Check:**
-   * The engine totalizes the annualized energy savings across all processed clusters:
-     $$\text{Total Portfolio Savings} = \sum_{i=1}^{m} E_{\text{savings}, i}$$
-   * **The Limit Gate:** If the Total Portfolio Savings exceeds the pre-onboarded cap parameter (`portfolio_spend_cap_kwh`), the engine identifies a physical modeling failure. 
-   * **Action:** Halt distribution routing. Mark the entire run status as `FAILED`, append error code `ERR_STAGE10_PORTFOLIO_CAP_EXCEEDED` to the master execution log, and block delivery generation.
-
-2. **The "Other" Isolation Routine:**
-   * The engine scans for any cluster where `why_not_enum == "Other"`.
-   * **Action:** These entries are intercepted and stripped from automated distribution routing. The engine assigns a `FACILITATOR_REVIEW_REQUIRED` state tag and isolates the record in an anomaly bucket for manual engineering reconciliation.
-
-3. **Distribution Handoff Sorting Matrix:**
-   Cleanly validated clusters that bypass the boundary errors are split into three definitive target destination arrays based on their token state and financial significance:
-
-   * **Guaranteed Savings Pool:** Contains active optimization clusters flagged with **Yellow** or **Red** pathway tokens where calculated savings clear project significance floors. These represent hard infrastructure or programmatic adjustments.
-   * **Added Value Opportunity Pool:** Contains active optimization clusters flagged with **Green** pathway tokens, alongside any tokenized entries that fall below the primary project significance limits. These are categorized as supplementary operational or behavioral coaching opportunities.
-   * **Documented Baseline Pool:** Contains all short-circuited nodes tagged with capability state `RESOLVED_SHORT_CIRCUIT` (Code 5 Baseload). Annual energy savings are locked at 0, but the rich mechanical, asset class, and control metadata are preserved intact for facility compliance auditing.
-
-#### 5.10.4 — Output Schema (Master Distribution Object)
-The final delivered execution packet compiles the isolated pools into a single, clean JSON structure ready for generation handoff:
-
-```json
-{
-  "portfolio_run_id": "run_2026_05_north_wing",
-  "execution_timestamp": "2026-05-22T19:15:30Z",
-  "portfolio_validation": {
-    "total_calculated_savings_kwh": 2600.0,
-    "portfolio_spend_cap_kwh": 2400000.0,
-    "boundary_check_passed": true
-  },
-  "delivery_pools": {
-    "guaranteed_savings_pool": [
-      {
-        "cluster_id": "cluster_nr_1101_lighting_display_accent",
-        "space_id": "NR-1101",
-        "asset_sub_class": "LIGHTING_DISPLAY_ACCENT",
-        "pathway_token": "RED",
-        "annual_energy_savings_kwh": 2450.0,
-        "annual_financial_savings_usd": 779.10
-      }
-    ],
-    "added_value_pool": [
-      {
-        "cluster_id": "cluster_nr_1101_lighting_recessed_can",
-        "space_id": "NR-1101",
-        "asset_sub_class": "LIGHTING_RECESSED_CAN",
-        "pathway_token": "GREEN",
-        "annual_energy_savings_kwh": 150.0,
-        "annual_financial_savings_usd": 47.70
-      }
-    ],
-    "documented_baseline_pool": []
-  },
-  "isolated_review_bucket": []
-}
-```
-### 6.5 — Taxonomic Relationship Schematic
-
-The visualization below organizes the data dictionary variables into vertically stacked execution containers, demonstrating the clear boundaries and relational handoffs between raw input fields, machine state tracks, the physics math module, and the final storage destinations:
-
-```mermaid
-flowchart TD
-    %% Custom Visual Style Elements for Structural Cleanliness
-    classDef inputs fill:#fff5f5,stroke:#e53e3e,stroke-width:2px,color:#2d3748;
-    classDef states fill:#fffaf0,stroke:#dd6b20,stroke-width:2px,color:#2d3748;
-    classDef outputs fill:#f0fff4,stroke:#38a169,stroke-width:2px,color:#2d3748;
-    classDef targets fill:#ebf8ff,stroke:#2b6cb0,stroke-width:2px,color:#2d3748;
-
-    %% 1. RAW DATA DATA ACQUISITION CONTAINER
-    subgraph Container_In ["📦 FIELD CAPTURE PAYLOAD (Section 6.1)"]
-        direction LR
-        I1["`**observation_id**`"]:::inputs
-        I2["`**space_id**`"]:::inputs
-        I3["`**asset_sub_class**`"]:::inputs
-        I4["`**field_count**`"]:::inputs
-        I5["`**did_you_turn_off**`"]:::inputs
-        I6["`**why_not_enum**`"]:::inputs
-    end
-    style Container_In fill:#fff5f5,stroke:#e53e3e,stroke-width:1px
-
-    %% 2. INTERNAL BACKEND PROCESSING STATE MACHINE CONTAINER
-    subgraph Container_State ["⚙️ PIPELINE STATE WRAPPER (Section 6.2)"]
-        direction LR
-        V1["`**resolved_control_domain**`"]:::states
-        V2["`**associated_panel_id**`"]:::states
-        V3["`**telemetry_decay_factor**`"]:::states
-        V4["`**pipeline_status**`"]:::states
-        V5["`**capability_code**`"]:::states
-        V6["`**control_domain_type**`"]:::states
-        V7["`**operational_reach_status**`"]:::states
-        V8["`**assigned_action_path**`"]:::states
-    end
-    style Container_State fill:#fffaf0,stroke:#dd6b20,stroke-width:1px
-
-    %% 3. ENGINEERING PHYSICS CORE MATHEMATICS CONTAINER
-    subgraph Container_Math ["🧮 PHYSICS CALCULATIONS (Section 6.3)"]
-        direction LR
-        M1["`**calculated_p_load_kw**`"]:::outputs
-        M2["`**calculated_h_reduction**`"]:::outputs
-        M3["`**annual_energy_savings_kwh**`"]:::outputs
-        M4["`**annual_financial_savings_usd**`"]:::outputs
-    end
-    style Container_Math fill:#f0fff4,stroke:#38a169,stroke-width:1px
-
-    %% 4. MASTER COMPILATION OUTPUT STORAGE POOLS
-    subgraph Container_Pool ["🎯 TARGET OUTPUT POOLS (Section 6.3)"]
-        direction LR
-        T1[("(guarantee) Array")]:::targets
-        T2[("(added_value) Array")]:::targets
-        T3[("(baseline) Array")]:::targets
-    end
-    style Container_Pool fill:#ebf8ff,stroke:#2b6cb0,stroke-width:1px
-
-    %% --- MACRO CONTAINER BOUNDARY RELATIONSHIPS ---
-    Container_In ===>|1. Onboarding DB Joins & Dropdown Verification| Container_State
-    Container_In ===>|2. Raw Counts & Taxonomy Constants| Container_Math
-    Container_State --->|3. Decay Modifiers & Short-Circuit Locks| Container_Math
-    Container_Math ===>|4. Magnitude & Exemption Threshold Sorting| Container_Pool
-    Container_State -.->|Bypass Path for Non-Optimizable Baselines| Container_Pool
-```
-
-### 6.6 — Data Lifecycle & Immutability Matrix
-
-To enforce the *Immutable Data Lineage* principle defined in Section 2.3, variables are strictly bounded by access lifecycles. Once a variable hits its lock state, any programmatic attempt by a downstream stage to overwrite its value must trigger an execution failure (`ERR_CRITICAL_IMMUTABILITY_VIOLATION`) and abort the entire run pool.
-
-| Variable Name | Initialization Point | Lifecycle State | Write Access Authority | Lock Point |
-| :--- | :--- | :--- | :--- | :--- |
-| `observation_id` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
-| `space_id` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
-| `asset_sub_class` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
-| `field_count` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
-| `did_you_turn_off` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
-| `why_not_enum` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
-| `resolved_control_domain` | Stage 2 Ingestion | **Write-Once** | Stage 2 Ingestion Hook | Post-Stage 2 Termination |
-| `associated_panel_id` | Stage 2 Ingestion | **Write-Once** | Stage 2 Ingestion Hook | Post-Stage 2 Termination |
-| `telemetry_decay_factor` | Stage 3 Filter | **Write-Once** | Stage 3 Telemetry Filter | Post-Stage 3 Termination |
-| `pipeline_status` | Stage 5 Resolution | **Stateful Mutable** | Stages 5 & 6 Logic Trees | Post-Stage 6 Termination |
-| `capability_code` | Stage 5 Resolution | **Write-Once** | Stage 5 Exemption Logic | Post-Stage 5 Termination |
-| `control_domain_type` | Stage 6 Allocation | **Write-Once** | Stage 6 Allocation Loop | Post-Stage 6 Termination |
-| `operational_reach_status`| Stage 7 Evaluation | **Write-Once** | Stage 7 Reach Evaluation | Post-Stage 7 Termination |
-| `assigned_action_path` | Stages 7 & 8 | **Write-Once** | Stage 7 (Green) \| Stage 8 | Post-Stage 8 Termination |
-| `calculated_p_load_kw` | Stage 9 Math Core | **Append-Only** | Stage 9 Physics Module | Post-Stage 9 Termination |
-| `calculated_h_reduction` | Stage 9 Math Core | **Append-Only** | Stage 9 Physics Module | Post-Stage 9 Termination |
-| `annual_energy_savings_kwh`| Stage 9 Math Core | **Append-Only** | Stage 9 Physics Module | Post-Stage 9 Termination |
-| `annual_financial_savings_usd`| Stage 9 Math Core | **Append-Only** | Stage 9 Physics Module | Post-Stage 9 Termination |
-
-### 6.7 — Strict Structural Boundary Constraints
-
-Every numerical and string field must be strictly validated against primitive constraints at its initialization step before being passed to downstream mathematical equations.
-
-#### 1. Text Format Regex Constraints
-* **UUID Verification (`observation_id`):** Must conform to a strict lowercase ASCII UUIDv4 pattern.
-  ```regex
-  ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
-  ```
-* **Space Layout Alignment (`space_id`):** Must strictly match uppercase alphanumeric entries with mandatory region-dash separators (e.g., `NR-1101`). No special character injection allowed.
-  ```regex
-  ^[A-Z0-9]+-[A-Z0-9]+$
-  ```
-
-#### 2. Mathematical Boundary Tolerances
-* **Tally Discretization (`field_count`):** Must be stored and validated as a strict positive integer. Decimals, fractional tallies, or zeros trigger instant schema drop conditions.
-  $$\text{Value Constraints: } x \in \mathbb{Z}^+, \quad x \ge 1$$
-* **Telemetry Attenuation (`telemetry_decay_factor`):** Validated as a fixed-point floating element representing fractional retention. Boundaries are inclusive; values exceeding unity are blocked.
-  $$\text{Value Constraints: } x \in \mathbb{R}, \quad 0.0 \le x \le 1.0$$
-* **Physical Energy Allocations (`calculated_p_load_kw`):** Floating point expressions are structurally locked to a maximum of **three decimal places** of precision to prevent floating-point rounding divergence between database engines and language runtimes.
-  $$\text{Value Constraints: } x > 0.000$$
+The engine is strictly prohibited from inferring continuous baseline states or mechanical capacity constraints from surveyor operational session limitations like `why_not_enum == "Requires Permission"`. This response indicates a boundary domain signal and a surveyor
