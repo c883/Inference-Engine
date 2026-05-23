@@ -125,7 +125,7 @@ The basic unit of data injected into the engine from the field discovery interfa
 
 ## SECTION 4 — 10-STAGE PIPELINE
 
-The Inference Engine processes observations through a rigid 10-stage sequential pipeline. No stage may be bypassed. Observations must complete each stage in order before advancing.
+The Inference Engine processes observations through a rigid sequential pipeline. No stage may be bypassed. Observations must complete each stage in order before advancing.
 
 1. **STAGE 1** — Ingestion and Normalization
 2. **STAGE 2** — Global Portfolio Context (Macro Baseline Container)
@@ -133,14 +133,15 @@ The Inference Engine processes observations through a rigid 10-stage sequential 
 4. **STAGE 4** — Structural Spatial Clustering
 5. **STAGE 5** — Asset Capability Resolution (Analysis Boundary Gate)
 6. **STAGE 6** — Control Domain Allocation
-7. **STAGE 7** — Operational Reach Evaluation
-8. **STAGE 8** — Barrier Nature Assignment
-9. **STAGE 9** — Measure Generation and Savings Calculation
-10. **STAGE 10** — Flat Tagged Optimization List and Macro Validation
+7. **STAGE 6.5** — Enrichment Review & Technical Confirmation (Human Verification Layer)
+8. **STAGE 7** — Operational Reach Evaluation
+9. **STAGE 8** — Barrier Nature Assignment
+10. **STAGE 9** — Measure Generation and Savings Calculation
+11. **STAGE 10** — Flat Tagged Optimization List and Macro Validation
 
 ### 4.1 — Pipeline Logic Schematic
 
-Below is the technical visualization of the 10-stage backend pipeline execution paths:
+Below is the technical visualization of the backend pipeline execution paths:
 
 ```mermaid
 flowchart TD
@@ -183,7 +184,9 @@ flowchart TD
         %% Normal Tree & Logic Splits
         S5 -->|pipeline_status == gate1_passed| S6[Stage 6: Control Domain Allocation]
         
-        S6 --> S7[Stage 7: Operational Reach Evaluation]
+        S6 --> S65[Stage 6.5: Enrichment Review & Confirmation]
+        
+        S65 --> S7[Stage 7: Operational Reach Evaluation]
         S7 -->|Reach == YES| Path_Green[Assign Green Action Path]
         S7 -->|Reach == NO| S8{Stage 8: Barrier Nature Assignment}
         
@@ -529,23 +532,71 @@ Successful execution updates the cluster with its verified physical control boun
 
 ---
 
+### 5.6.5 — STAGE 6.5: Enrichment Review & Technical Confirmation
+
+#### 5.6.5.1 — Purpose
+To execute a structured, collaborative reconciliation workflow that resolves materially important unknowns, control ambiguities, and low-confidence field assumptions before final savings calculations lock . This layer enables continuous progress tracking in the field while preserving a strict, untamperable audit trail .
+
+#### 5.6.5.2 — Escalation Rules (Review Queue Ingestion)
+An equipment cluster is automatically flagged with an escalation token and routed into the human-in-the-loop review queue if it meets one or more of the following system-driven parameters :
+1. **Fallback Reliance:** The cluster context properties were resolved via the Stage 2 global catch-all layer (`source_documentation_ref == "GLOBAL_CATCH_ALL_FALLBACK"`).
+2. **Operational Boundary Disconnect:** The asset is marked with an active baseline exclusion dispute (`capability_code == "EXEMPT_ASSET"`), or the surveyor noted access limits via `why_not_enum == "Requires Permission"` .
+3. **Visibility Gaps:** The physical control interface was completely unlocated during the session (`reach_evaluation_code == "P7_RULE_CONTROL_NOT_FOUND"`), meaning local connectivity maps remain unverified .
+
+#### 5.6.5.3 — Human Ingestion State Machine
+While inside the reconciliation module, the cluster tracks through six distinct data states. Original field discovery observations remain completely immutable throughout this lifecycle :
+* `UNRESOLVED` — Ingested and awaiting engineering review or customer document attachment .
+* `CUSTOMER_SUBMITTED` — Customer has attached supporting cut-sheets, building automation schedules, or panel metrics .
+* `UNDER_REVIEW` — Analyst is validating documentation alignment against reference libraries .
+* `CONFIRMED` — Submission validated. Analyst updates `resolved_control_domain` or technical parameters and flips `is_default_applied = false` .
+* `REJECTED` — Evidence insufficient. Fallback configurations are maintained, and rationale is preserved in the audit metadata .
+* `LOCKED` — Verification frozen. Payload is passed back to the core pipeline for operational reach and physics evaluation .
+
+#### 5.6.5.4 — Output Schema (Reconciled Cluster Object)
+```json
+{
+  "cluster_id": "cluster_nr_1101_lighting_display_accent",
+  "space_id": "NR-1101",
+  "asset_sub_class": "LIGHTING_DISPLAY_ACCENT",
+  "total_cluster_count": 14,
+  "source_observation_ids": ["raw_83", "raw_104"],
+  "aggregated_context": {
+    "blended_utility_rate_kwh": 0.318,
+    "portfolio_spend_cap_kwh": 2400000,
+    "resolved_control_domain": "LOCAL_MANUAL_SWITCH",
+    "associated_panel_id": "BMS-P3-ZONE2",
+    "telemetry_decay_factor": 1.0,
+    "source_documentation_ref": "SUBMITTED_CUT_SHEET_REF_91",
+    "is_default_applied": false
+  },
+  "enrichment_reconciliation": {
+    "reconciliation_status": "LOCKED",
+    "analyst_review_rationale": "Customer submitted vendor submittal package confirming hardware switch bounds.",
+    "identity_precision_updated": true
+  },
+  "validation_status": "CLEARED"
+}
+```
+
+---
+
 ### 5.7 — STAGE 7: Operational Reach Evaluation
 
 #### 5.7.1 — Purpose
 To evaluate whether the operating entity possesses the contractual, legal, or logistical authority—termed "operational reach"—to execute an intervention on the allocated control domain. This stage separates easily accessible changes from those blocked by organizational boundaries.
 
 #### 5.7.2 — Input Requirements
-This stage accepts equipment clusters that successfully completed Stage 6 (`control_layer_validated == true`).
+This stage accepts equipment clusters that successfully completed Stage 6.5 (`reconciliation_status == "LOCKED"`).
 
 #### 5.7.3 — Reach Evaluation & The P7 Default Rule
 The engine checks organizational authorization logs and the field data to resolve the `operational_reach_status`. Implicit assumptions are strictly forbidden.
 
 1. **The P7 Default Rule ("Control Not Found"):**
-   * If the cluster contains any underlying field observation records where `why_not_enum == "Control Not Found"`, the engine triggers the **P7 Default Rule** regardless of whether Stage 2 injected a progress calculation control fallback.
+   * If the cluster contains any underlying field observation records where `why_not_enum == "Control Not Found"`, the engine triggers the **P7 Default Rule** regardless of whether Stage 2 or Stage 6.5 injected an intermediate default parameter.
    * **The Logic:** Because the physical control mechanism could not be located by the field team during discovery, the client possesses no immediate operational visibility or reach over the asset for that session.
    * **Action:** Force `operational_reach_status = "NO"`. The cluster is strictly barred from advancing directly to a green pathway and is routed immediately to **STAGE 8 — Barrier Nature Assignment** to track remediation.
 2. **Standard Reach Validation:**
-   * If `why_not_enum` does not contain "Control Not Found", the engine queries the site's vendor contract database for the allocated `control_domain_type` (resolved in Stage 6).
+   * If `why_not_enum` does not contain "Control Not Found", the engine queries the site's vendor contract database for the allocated `control_domain_type` (resolved in Stage 6 / 6.5).
    * **Reach == YES:** If the contract profiles show the client has in-house maintenance authority or an active service contract to alter the control loop, set `operational_reach_status = "YES"`. The cluster skips Stage 8, sets `assigned_action_path = "Green"`, and maps directly to Stage 9.
    * **Reach == NO:** If the control loop belongs to an uncooperative landlord, a third-party base-building system, or a vendor with an `UNKNOWN` relationship status, set `operational_reach_status = "NO"` and route the cluster to Stage 8.
 
@@ -558,15 +609,14 @@ The engine checks organizational authorization logs and the field data to resolv
   "total_cluster_count": 14,
   "source_observation_ids": ["raw_83", "raw_104"],
   "control_allocation": {
-    "control_domain_type": "LOCAL_MANUAL_SWITCH",
-    "control_layer_validated": true
+    "control_domain_type": "LOCAL_MANUAL_SWITCH"
   },
   "operational_reach": {
     "operational_reach_status": "NO",
     "reach_evaluation_code": "P7_RULE_CONTROL_NOT_FOUND",
     "skip_barrier_analysis": false
   },
-  "validation_status": "CLEARED_WITH_DEFAULTS"
+  "validation_status": "CLEARED"
 }
 ```
 
@@ -613,7 +663,7 @@ The engine is prohibited from auto-assigning a structural capital deficiency on 
     "barrier_operational_category": "LOGIC_CONFIGURATION_BARRIER",
     "engineering_override_required": true
   },
-  "validation_status": "CLEARED_WITH_DEFAULTS"
+  "validation_status": "CLEARED"
 }
 ```
 
@@ -636,7 +686,7 @@ $$P_{\text{load}} = (C_{\text{cluster}} \times W_{\text{fixture}}) \times 10^{-3
 
 * $P_{\text{load}}$ = Total connected cluster load in kilowatts (kW).
 * $C_{\text{cluster}}$ = Total item count (`total_cluster_count`).
-* $W_{\text{fixture}}$ = Sub-class equipment baseline wattage (e.g., $50\text{W}$ for Halogen Track, $15\text{W}$ for LED Can).
+* $W_{\text{fixture}}$ = Sub-class equipment baseline wattage (e.g., 50W for Halogen Track, 15W for LED Can).
 
 ##### Step 2: Realized Operational Hours Reduction ($H_{\text{reduction}}$)
 The engine computes the potential waste-hour compression window.
@@ -683,7 +733,7 @@ $$S_{\text{financial}} = E_{\text{savings}} \times R_{\text{utility}}$$
     "annual_financial_savings_usd": 779.10,
     "math_execution_verified": true
   },
-  "validation_status": "CLEARED_WITH_DEFAULTS"
+  "validation_status": "CLEARED"
 }
 ```
 
@@ -785,6 +835,7 @@ These attributes are injected dynamically or appended as wrapper metadata proper
 | `pipeline_status` | String | `"gate1_passed"`, `"EXEMPT_ASSET_SHORT_CIRCUIT"` | Stage 5 (Exemption Gate) | Stateful validation token defining execution path eligibility. `"gate1_passed"` advances to domain allocation; short-circuits lock run hours to zero. |
 | `capability_code` | String | `"EXEMPT_ASSET"`, `"FUNCTIONAL_OPTIMIZABLE"` | Stage 5 (Exemption Gate) | Classification tracker denoting whether an asset represents an optimized candidate measure or an immutable, protected facility baseline. |
 | `control_domain_type` | String | `"CENTRAL_PANEL_LOOP"`, `"AUTOMATED_SCHEDULE"`, `"LOCAL_MANUAL_SWITCH"` | Stage 6 (Allocation Layer) | Explicit structural vector mapping indicating where physical, programmatic, or administrative corrections must take place. |
+| `reconciliation_status` | String | `"UNRESOLVED"`, `"CUSTOMER_SUBMITTED"`, `"UNDER_REVIEW"`, `"CONFIRMED"`, `"REJECTED"`, `"LOCKED"` | Stage 6.5 (Enrichment Layer) | Active governance parameter tracking human-in-the-loop tracking interactions for anomalous asset nodes . |
 | `operational_reach_status`| String | `"YES"`, `"NO"` | Stage 7 (Reach Evaluation) | Contractual and logistical binary recording whether the client organization possesses immediate organizational authority over the control layer. |
 | `assigned_action_path` | String | `"Green"`, `"Yellow"`, `"Red"` | Stages 7 & 8 (Performance Map) | Ultimate color-token risk classification determining programmatic execution friction and the nature of the optimization effort. |
 
@@ -852,8 +903,9 @@ flowchart TD
         V5[pipeline_status]:::states
         V6[capability_code]:::states
         V7[control_domain_type]:::states
-        V8[operational_reach_status]:::states
-        V9[assigned_action_path]:::states
+        V8[reconciliation_status]:::states
+        V9[operational_reach_status]:::states
+        V10[assigned_action_path]:::states
     end
     style Container_State fill:#fffaf0,stroke:#dd6b20,stroke-width:1px
 
@@ -902,6 +954,7 @@ To enforce the *Immutable Data Lineage* principle defined in Section 2.3, variab
 | `pipeline_status` | Stage 5 Resolution | **Stateful Mutable** | Stages 5 & 6 Logic Trees | Post-Stage 6 Termination |
 | `capability_code` | Stage 5 Resolution | **Write-Once** | Stage 5 Exemption Logic | Post-Stage 5 Termination |
 | `control_domain_type` | Stage 6 Allocation | **Write-Once** | Stage 6 Allocation Loop | Post-Stage 6 Termination |
+| `reconciliation_status` | Stage 6.5 Enrichment | **Stateful Mutable** | Analyst Active Evaluation Desk | Post-Stage 6.5 Termination |
 | `operational_reach_status`| Stage 7 Evaluation | **Write-Once** | Stage 7 Reach Evaluation | Post-Stage 7 Termination |
 | `assigned_action_path` | Stages 7 & 8 | **Write-Once** | Stage 7 (Green) \| Stage 8 | Post-Stage 8 Termination |
 | `calculated_p_load_kw` | Stage 9 Math Core | **Append-Only** | Stage 9 Physics Module | Post-Stage 9 Termination |
