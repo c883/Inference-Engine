@@ -11,11 +11,17 @@ To maintain structural agility and prevent logic fragmentation, the system enfor
 * **The Discovery Studio (Frontend):** The mobile and web wireframes function purely as stateless capture mechanisms. The frontend UI is completely blind to savings math, asset wattages, utility structures, or routing topology. Its sole responsibility is to capture field states, validate user inputs against basic data types, and ship flat data structures.
 * **The Inference Engine (Backend):** The engine functions as an isolated, deterministic state machine. It consumes the raw payload, injects global constraints, runs the physics modeling loops, and distributes results.
 
-┌─────────────────────────────────┐        Raw JSON Payload        ┌─────────────────────────────────┐
-│     DISCOVERY STUDIO (UI)       │ ─────────────────────────────> │        INFERENCE ENGINE         │
-│  Stateless Field Data Capture   │ <───────────────────────────── │   Deterministic State Machine   │
-└─────────────────────────────────┘      Processed Run Pool        └─────────────────────────────────┘
+```mermaid
+flowchart LR
+    classDef frontend fill:#ebf8ff,stroke:#2b6cb0,stroke-width:2px,color:#1a365d;
+    classDef backend fill:#f0fff4,stroke:#38a169,stroke-width:2px,color:#22543d;
 
+    UI["Discovery Studio (UI)<br><small>Stateless Field Data Capture</small>"]:::frontend
+    ENGINE["Inference Engine<br><small>Deterministic State Machine</small>"]:::backend
+
+    UI -->|Raw JSON Payload| ENGINE
+    ENGINE -.->|Processed Run Pool| UI
+```
 ### 1.3 — Operational Boundaries
 The engine does not utilize machine learning, predictive heuristics, or stochastic estimation. Every output state is a direct, traceable function of its inputs and fixed engineering constants. If the engine encounters an incomplete data state that cannot be resolved through predefined fallback rules, it is structurally mandated to halt processing for that node rather than generate an assumed value.
 
