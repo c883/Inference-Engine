@@ -159,31 +159,30 @@ flowchart TD
     end
     style L2 fill:#fffaf0,stroke:#dd6b20,stroke-width:1px
 
-    %% --- LAYER 3: REAL-TIME TELEMETRY FILTERS ---
-    subgraph L3 [3. TELEMETRY PROCESSING]
-        S2 --> S3[Stage 3: Telemetry Decay Filter]
-        S2 -->|Why Not: Occupancy Sensor| S3
+    %% --- LAYER 3: TELEMETRY & RUNTIME MODIFIERS ---
+    subgraph L3 [3. PROCESSING FILTERS]
+        S2 --> S3[Stage 3: Localized Telemetry & Runtime Modifiers]
         S3 --> S4[Stage 4: Structural Spatial Clustering]
     end
     style L3 fill:#ebf8ff,stroke:#2b6cb0,stroke-width:1px
 
     %% --- LAYER 4: RESOLUTION ENGINE & PATHS ---
     subgraph L4 [4. CORE RESOLUTION MODULES]
-        S4 --> S5[Stage 5: Asset Capability Check]
+        S4 --> S5{Stage 5: Analysis Boundary Gate}
         
         %% Short Circuits
-        S5 -->|Why Not: Requires Permission| SC_Base[Hardcode Reduction Hours to 0]
+        S5 -->|capability_code == NECESSARY_BASELOAD| SC_Base[Hardcode Reduction Hours to 0]
         
         %% Normal Tree & Logic Splits
-        S5 -->|Passed| S6[Stage 6: Control Domain Weights]
-        S6 -->|Why Not: No Switch Present / Timer / Schedule| S6
+        S5 -->|Otherwise| S6[Stage 6: Control Domain Allocation]
         
         S6 --> S7[Stage 7: Operational Reach Evaluation]
-        S7 -->|Why Not: Control Not Found| S8[Stage 8: Barrier Nature Assignment]
         S7 -->|Reach == YES| Path_Green[Assign Green Token]
+        S7 -->|Reach == NO| S8{Stage 8: Barrier Nature Assignment}
         
-        S8 --> Path_Yellow[Assign Yellow Token]
-        S8 --> Path_Red[Assign Red Token]
+        %% Stage 8 Detailed Control Not Found Branching
+        S8 -->|Infrastructure Confirmed Absent| Path_Red[Assign Red Token]
+        S8 -->|Control Unlocated During Session| Path_Yellow[Assign Yellow Token]
     end
     style L4 fill:#f7fafc,stroke:#4a5568,stroke-width:1px
 
@@ -194,16 +193,15 @@ flowchart TD
         Path_Yellow --> S9
         Path_Red --> S9
         
-        S2 -->|Why Not: Other| S10[Stage 10: Aggregate Data Verification]
-        S9 --> S10
+        S9 --> S10[Stage 10: Output Sorting Matrix]
         
         S10 --> Check{Total Savings Exceed Portfolio Cap?}
         Check -->|YES| Err_2[Trigger Calibration Error Flag]
-        Check -->|NO| Handoff[/Distribution Handoff Matrix/]
+        Check -->|NO| Handoff{Sort by Savings Magnitude & Thresholds}
         
-        Handoff --> Pool1[(Guarantee Savings Pool)]
-        Handoff --> Pool2[(Added Value Pool)]
-        Handoff --> Pool3[(Documented Baseline Pool / Metadata Preserved)]
+        Handoff --> Pool1[(Guaranteed Savings Pool)]
+        Handoff --> Pool2[(Added Value Opportunity Pool)]
+        Handoff --> Pool3[(Documented Baseline Pool)]
     end
     style L5 fill:#f0fff4,stroke:#38a169,stroke-width:1px
 ```
@@ -313,24 +311,24 @@ Successful execution outputs an augmented data packet containing both local fiel
   "validation_status": "CLEARED"
 }
 ```
-### 5.3 — STAGE 3: Localized Telemetry Context Filter
+### 5.3 — STAGE 3: Localized Telemetry Context & Runtime Modification
 
 #### 5.3.1 — Purpose
-To apply real-time telemetry signals, environmental sensor parameters, and behavioral modifiers to the context-injected stream. This stage scales the baseline waste-runtime window using deterministic decay factors (e.g., modulating hours based on the presence of an occupancy sensor).
+To apply real-time telemetry inputs alongside physical asset control observations to the context-injected stream. This stage scales the potential waste-runtime window using deterministic runtime modifiers before individual observations undergo spatial clustering.
 
 #### 5.3.2 — Input Requirements
-This stage accepts the context-injected payload from Stage 2, specifically evaluating the `why_not_enum` value resolved in Stage 1 alongside the building's localized profile.
+This stage accepts the context-injected payload from Stage 2. It processes active environmental sensor observations recorded within the field payload wrapper.
 
-#### 5.3.3 — Telemetry Decay Logic Rules
-To adjust runtime calculations without predictive guessing, the engine applies explicit mathematical scale factors based on the verified control telemetry:
+#### 5.3.3 — Runtime Modifier Evaluation Rules
+The presence of local automated hardware alters the operational baseline runtime assumptions. The engine separates automated logic observations from continuous external telemetry streams (e.g., live Owl/Bulldog hardware presence networks), applying a standalone runtime adjustment calculation:
 
-1. **Occupancy Sensor Verification Rule:**
-   * If `why_not_enum == "Occupancy Sensor"`, the engine queries the global portfolio telemetry table for the specific site's verified sensor timeout interval constant ($T_{\text{timeout}}$).
-   * If the constant is present, set `telemetry_decay_factor` = $T_{\text{timeout}}$ (e.g., `0.75`, representing a 25% reduction in unmanaged runtime due to automated sensor sweep cycles).
-   * If the constant is missing from the portfolio configuration database, the engine is prohibited from assuming a default. Set `telemetry_decay_factor = null`, flag the node as `FLAGGED`, append `ERR_STAGE3_MISSING_SENSOR_CONSTANT`, and halt execution.
+1. **Occupancy Sensor Runtime Modifier Rule:**
+   * If `why_not_enum == "Occupancy Sensor"`, the engine recognizes that an automated local sweep routine is active. It queries the system database for the site's verified sensor timeout sweep constant ($F_{\text{telemetry}}$).
+   * If the constant is present, it is mapped to the asset node data array to modulate the downstream potential waste window (e.g., a constant of `0.75` accounting for a 25% reduction in unmanaged runtime due to integrated sensor cycling).
+   * If the sensor constant is missing from the portfolio database parameters, the engine is prohibited from assuming an arbitrary default value. Set `telemetry_decay_factor = null`, mark `validation_status = "FLAGGED"`, log `ERR_STAGE3_MISSING_SENSOR_CONSTANT`, and terminate processing.
 
-2. **Standard Schedule Filter Rule:**
-   * If `why_not_enum` matches "Timer / Schedule", "No Switch Present", or "Control Not Found", telemetry adjustments are not applied at this layer. Set `telemetry_decay_factor = 1.0`.
+2. **Standard Baseline Filter Rule:**
+   * For observations where `why_not_enum` does not equal "Occupancy Sensor", no automated runtime adjustments are applied at this layer. Set `telemetry_decay_factor = 1.0`.
 
 #### 5.3.4 — Output Schema (Telemetry-Filtered Node)
 Successful execution appends the computed runtime modifier value directly to the tracking metadata wrapper:
@@ -401,26 +399,28 @@ Successful execution reduces the stream size, handing off a structured array of 
   }
 ]
 ```
-### 5.5 — STAGE 5: Asset Capability Resolution
+### 5.5 — STAGE 5: Asset Capability Resolution (Analysis Boundary Gate)
 
 #### 5.5.1 — Purpose
-To evaluate whether the clustered equipment possesses the operational freedom, functional health, or baseline stability to undergo energy optimization. This stage acts as a primary safety gateway, immediately short-circuiting and preserving critical facility baseloads that cannot be modulated.
+To evaluate whether the clustered equipment possesses the operational freedom, functional health, or baseline stability to undergo energy optimization. This stage acts as a primary safety gateway, executing an intentional engineering lock on critical facility baseloads that cannot be safely modulated.
 
 #### 5.5.2 — Input Requirements
-This stage accepts the unified spatial cluster arrays from Stage 4 and evaluates the underlying `why_not_enum` tracking arrays along with asset health states.
+This stage accepts the unified spatial cluster arrays from Stage 4 and evaluates the underlying parameters confirmed during the onboarding validation sequence.
 
-#### 5.5.3 — Resolution Logic (The "Requires Permission" Short-Circuit)
-To guarantee that optimization logic never interferes with critical facility runtime demands, the engine runs a strict capability check before allocating control domain pathways:
+#### 5.5.3 — Resolution Logic (The Analysis Boundary Gate)
+The engine does not infer equipment capacity or baseload restrictions using surveyor operational observation strings like `why_not_enum == "Requires Permission"`. Demanding permission to manipulate a switch is a boundary domain signal and a surveyor credential gap, not a mechanical baseload indicator. 
 
-1. **The Code 5 Baseload Trigger:**
-   * The engine scans the source observation metadata within the cluster. If any underlying observation row contains the value `why_not_enum == "Requires Permission"`, the engine immediately classifies the cluster under capability status **Code 5: `necessary_baseload`**.
-   * **The Zero-Hour Mandate:** When Code 5 is tripped, the system sets the ultimate operational runtime reduction hours to zero:
+Instead, the baseline safety lock is governed strictly by explicit system parameters:
+
+1. **The Facilitator Baseload Lock:**
+   * The engine scans the data node attributes for an explicit `capability_code` confirmation generated during the pre-computation analysis audit.
+   * If `capability_code == "NECESSARY_BASELOAD"`, the engine confirms that the asset cluster provides vital continuous facility functions (e.g., life safety systems, constant-volume critical lab exhaust) and cannot be optimized.
+   * **Action:** The system sets the ultimate operational runtime reduction hours to zero:
      $$H_{\text{reduction}} = 0$$
-   * **Path routing:** The cluster's `capability_status` is updated to `RESOLVED_SHORT_CIRCUIT`. It completely bypasses the control, reach, and barrier analysis loops (Stages 6, 7, and 8) and is routed directly to Stage 10 for baseline metadata preservation.
+   * **Path Routing:** The cluster's `capability_status` is updated to `RESOLVED_SHORT_CIRCUIT`. It completely bypasses the downstream domain allocation, reach, and barrier analysis loops (Stages 6, 7, and 8) and is routed directly to Stage 10 for baseline metadata preservation.
 
-2. **Normal Status Advancement:**
-   * If the cluster contains no instances of "Requires Permission" and the equipment status is marked functional, set `capability_status = PASSED` and advance the cluster intact to Stage 6.
-
+2. **Standard Status Advancement:**
+   * If the cluster does not carry the explicit `NECESSARY_BASELOAD` restriction, set `capability_status = "PASSED"` and advance the cluster intact to Stage 6.
 #### 5.5.4 — Output Schema (Capability-Resolved Object)
 Example of a cluster packet that has triggered the Code 5 baseline short-circuit:
 
@@ -547,25 +547,27 @@ Example of an asset cluster where the control mechanism was missing in the field
 ### 5.8 — STAGE 8: Barrier Nature Assignment
 
 #### 5.8.1 — Purpose
-To evaluate clusters that failed the Stage 7 operational reach gateway (`operational_reach_status == "NO"`) and classify the structural or administrative obstacle preventing immediate implementation. This stage assigns a definitive **Yellow** or **Red** token path to govern downstream measure generation metrics.
+To evaluate clusters that failed the Stage 7 operational reach gateway (`operational_reach_status == "NO"`) and classify the structural or administrative obstacles preventing immediate optimization. This stage assigns a definitive token path based on post-session infrastructure verification.
 
 #### 5.8.2 — Input Requirements
-This stage accepts equipment clusters with an evaluated `operational_reach_status` of `NO`. 
+This stage accepts equipment clusters with an evaluated `operational_reach_status` of `NO`.
 
-#### 5.8.3 — Barrier Classification & Token Attribution Logic
-The engine analyzes the validated `why_not_enum` value and infrastructure metrics to bifurcate entries into two distinct operational pathways:
+#### 5.8.3 — Barrier Classification & Branching Logic
+The engine is prohibited from assuming that an unlocated control mechanism automatically dictates a structural capital deficiency. The selection of `why_not_enum == "Control Not Found"` indicates a localized session visibility limitation and must branch dynamically based on post-session engineering investigation properties:
 
-1. **Yellow Pathway Token (Operational / Logic Barriers):**
-   * **Criteria:** The barrier is administrative, programmatic, or software-driven. Implementing the optimization requires logic reconfiguration, system re-programming, or contract modification rather than physical hardware reconstruction.
-   * **Trigger Conditions:** * `why_not_enum == "Timer / Schedule"` AND Reach is `NO`
-     * `why_not_enum == "No Switch Present"` AND Reach is `NO` (where existing central BMS controls are confirmed but un-networked or restricted by vendor profiles).
-   * **Action:** Assign `pathway_token = "YELLOW"`. Set operational category to `LOGIC_CONFIGURATION_BARRIER`.
-
-2. **Red Pathway Token (Structural / Capital Barriers):**
-   * **Criteria:** The barrier is tied to missing physical hardware, hidden routing infrastructure, or structural real estate layout boundaries. Resolution requires physical engineering exploration, significant capital investment, or hardware deployment.
+1. **Red Pathway Token (Structural / Capital Barriers):**
+   * **Criteria:** The optimization is blocked by an absolute absence of physical infrastructure, hidden distribution routing, or hard real estate boundaries. Resolution requires hardware procurement or structural capital engineering.
    * **Trigger Conditions:**
-     * `why_not_enum == "Control Not Found"` (The absolute absence of visible localized or structural control mechanisms requires physical tracing and capital installation of points).
+     * The `why_not_enum` value resolves to `"Control Not Found"`, AND a post-session engineering review confirms the physical control infrastructure is absent and requires capital installation.
    * **Action:** Assign `pathway_token = "RED"`. Set operational category to `STRUCTURAL_INFRASTRUCTURE_BARRIER`.
+
+2. **Yellow Pathway Token (Operational / Logic / Coordination Barriers):**
+   * **Criteria:** The optimization block is administrative, programmatic, or coordination-driven. Resolution requires system reprogramming, layout tracing, or tenant-coordination loops without capital hardware deployment.
+   * **Trigger Conditions:**
+     * `why_not_enum == "Timer / Schedule"`
+     * `why_not_enum == "No Switch Present"` (where branch control loops exist at a panel circuit level but require administrative coordination).
+     * The `why_not_enum` value resolves to `"Control Not Found"`, but post-session investigation confirms the control loop physically exists and was simply unlocated by the surveyor during the capture session.
+   * **Action:** Assign `pathway_token = "YELLOW"`. Set operational category to `COORDINATION_GAP_BARRIER` or `LOGIC_CONFIGURATION_BARRIER`.
 
 #### 5.8.4 — Output Schema (Barrier-Assigned Object)
 Example of a cluster assigned a Red Token path due to unmapped control systems:
@@ -662,31 +664,28 @@ The cluster object is updated with the complete deterministic physics payload:
 ### 5.10 — STAGE 10: Finding Pool Distribution and Output Validation
 
 #### 5.10.1 — Purpose
-To execute macro portfolio-level boundary validation checks and sort fully calculated system clusters into isolated client-facing delivery pools. This stage acts as the ultimate quality assurance gate, intercepting processing anomalies and separating capital configuration assets from qualitative baseline records.
+To execute macro portfolio-level boundary validation checks and sort fully calculated system clusters into isolated client-facing delivery pools. This stage acts as the ultimate quality assurance gate, evaluating savings against strict project significance thresholds.
 
 #### 5.10.2 — Input Requirements
-This stage accepts the array of calculated system cluster objects from Stage 9. It requires access to the global portfolio constraints (`portfolio_spend_cap_kwh`) injected during Stage 2.
+This stage accepts the complete array of calculated system cluster objects from Stage 9 and references the project profile's explicit `guarantee_significance_floor_kwh` parameter.
 
-#### 5.10.3 — Portfolio Validation & Sorting Rules
+#### 5.10.3 — Portfolio Validation & The Sorting Matrix
+The engine is strictly forbidden from routing findings based on token color designations (Green, Yellow, Red). High-confidence behavioral Green findings are primary contributors to contractual models, whereas certain tokenized findings may fall below validation tolerances. 
 
-Before populating the output arrays, the engine processes the completed cluster stream through two strict algorithmic validation filters:
+Sorting is executed strictly via financial significance metrics:
 
 1. **Portfolio Spend Cap Boundary Check:**
    * The engine totalizes the annualized energy savings across all processed clusters:
      $$\text{Total Portfolio Savings} = \sum_{i=1}^{m} E_{\text{savings}, i}$$
-   * **The Limit Gate:** If the Total Portfolio Savings exceeds the pre-onboarded cap parameter (`portfolio_spend_cap_kwh`), the engine identifies a physical modeling failure. 
-   * **Action:** Halt distribution routing. Mark the entire run status as `FAILED`, append error code `ERR_STAGE10_PORTFOLIO_CAP_EXCEEDED` to the master execution log, and block delivery generation.
+   * If the Total Portfolio Savings exceeds the pre-onboarded portfolio limit parameter (`portfolio_spend_cap_kwh`), a physical modeling calibration failure is declared. Mark the run status as `FAILED`, log `ERR_STAGE10_PORTFOLIO_CAP_EXCEEDED`, and block delivery generation.
 
-2. **The "Other" Isolation Routine:**
-   * The engine scans for any cluster where `why_not_enum == "Other"`.
-   * **Action:** These entries are intercepted and stripped from automated distribution routing. The engine assigns a `FACILITATOR_REVIEW_REQUIRED` state tag and isolates the record in an anomaly bucket for manual engineering reconciliation.
+2. **The Sorting Matrix:**
+   Cleanly validated clusters are distributed into three target arrays using the following mathematical significance sorting filters:
 
-3. **Distribution Handoff Sorting Matrix:**
-   Cleanly validated clusters that bypass the boundary errors are split into three definitive target destination arrays based on their token state and financial significance:
-
-   * **Guaranteed Savings Pool:** Contains active optimization clusters flagged with **Yellow** or **Red** pathway tokens where calculated savings clear project significance floors. These represent hard infrastructure or programmatic adjustments.
-   * **Added Value Opportunity Pool:** Contains active optimization clusters flagged with **Green** pathway tokens, alongside any tokenized entries that fall below the primary project significance limits. These are categorized as supplementary operational or behavioral coaching opportunities.
-   * **Documented Baseline Pool:** Contains all short-circuited nodes tagged with capability state `RESOLVED_SHORT_CIRCUIT` (Code 5 Baseload). Annual energy savings are locked at 0, but the rich mechanical, asset class, and control metadata are preserved intact for facility compliance auditing.
+   * **Guaranteed Savings Pool:** Contains any calculated system cluster—regardless of token pathway color (Green, Yellow, or Red)—whose individual annualized savings magnitude completely satisfies or exceeds the contract's engineering floor:
+     $$E_{\text{savings}} \ge \text{guarantee\_significance\_floor\_kwh}$$
+   * **Added Value Opportunity Pool:** Contains valid active optimization clusters whose individual calculated savings fall completely below the contractual significance limit ($E_{\text{savings}} < \text{guarantee\_significance\_floor\_kwh}$), classifying them as secondary operational optimization or training opportunities.
+   * **Documented Baseline Pool:** Contains all short-circuited nodes tagged with capability state `RESOLVED_SHORT_CIRCUIT` (Code 5 Baseload). Annual energy savings are locked at 0, preserving vital facility infrastructure records for baseline maintenance auditing.
 
 #### 5.10.4 — Output Schema (Master Distribution Object)
 The final delivered execution packet compiles the isolated pools into a single, clean JSON structure ready for generation handoff:
