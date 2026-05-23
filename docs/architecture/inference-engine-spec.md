@@ -480,38 +480,41 @@ To run the deterministic engineering physics core. This stage calculates the bas
 This stage accepts all processed equipment clusters. This includes both active optimization candidates (Green, Yellow, and Red tokens) and short-circuited baseload entries.
 
 #### 5.9.3 — Physics Calculations & Deterministic Formulas
-
 The engine runs a four-step calculation sequence using fixed constants mapped to the specific `asset_sub_class`. No historical averaging or statistical smoothing is permitted.
 
-**Step 1: Connected Cluster Load ($P_{\text{load}}$)**
+##### Step 1: Connected Cluster Load ($P_{\text{load}}$)
 The total electrical load for the system cluster is calculated by multiplying the aggregated count by the baseline fixture wattage constant ($W_{\text{fixture}}$) defined in the system asset catalog:
 
-$$P_{\text{load}} = \left( C_{\text{cluster}} \times W_{\text{fixture}} \right) \times 10^{-3}$$
+$$P_{\text{load}} = (C_{\text{cluster}} \times W_{\text{fixture}}) \times 10^{-3}$$
 
-* $P_{\text{load}}$ = Total connected cluster load in kilowatts ($\text{kW}$).
+* $P_{\text{load}}$ = Total connected cluster load in kilowatts (kW).
 * $C_{\text{cluster}}$ = Total item count (`total_cluster_count`).
 * $W_{\text{fixture}}$ = Sub-class equipment baseline wattage (e.g., $50\text{W}$ for Halogen Track, $15\text{W}$ for LED Can).
 
-**Step 2: Realized Operational Hours Reduction ($H_{\text{reduction}}$)**
-The engine computes the potential waste-hour compression window. 
-* If `capability_code == "CODE_5_NECESSARY_BASELOAD"`, the reduction hours are hardcoded:
-    $$H_{\text{reduction}} = 0$$
-* For optimizable paths, the engine reads the default sub-class unmanaged waste hour constant ($H_{\text{waste}}$) and scales it by the telemetry decay multiplier:
-    $$H_{\text{reduction}} = H_{\text{waste}} \times \text{telemetry\_decay\_factor}$$
+##### Step 2: Realized Operational Hours Reduction ($H_{\text{reduction}}$)
+The engine computes the potential waste-hour compression window.
+* If `capability_code` == `"CODE_5_NECESSARY_BASELOAD"`, the reduction hours are hardcoded:
+  $$H_{\text{reduction}} = 0$$
+* For optimizable paths, the engine reads the default sub-class unmanaged waste hour constant ($H_{\text{waste}}$) and scales it by the telemetry decay multiplier variable ($F_{\text{telemetry}}$):
+  $$H_{\text{reduction}} = H_{\text{waste}} \times F_{\text{telemetry}}$$
 
-**Step 3: Annualized Energy Savings ($E_{\text{savings}}$)**
+* $H_{\text{reduction}}$ = Realized annual hours reduction.
+* $H_{\text{waste}}$ = Default sub-class unmanaged waste hour constant.
+* $F_{\text{telemetry}}$ = Telemetry decay factor variable derived from `telemetry_decay_factor`.
+
+##### Step 3: Annualized Energy Savings ($E_{\text{savings}}$)
 Net electrical consumption reduction is calculated as a direct product of load and time:
 
 $$E_{\text{savings}} = P_{\text{load}} \times H_{\text{reduction}}$$
 
-* $E_{\text{savings}}$ = Annualized energy savings in kilowatt-hours ($\text{kWh}$).
+* $E_{\text{savings}}$ = Annualized energy savings in kilowatt-hours (kWh).
 
-**Step 4: Financial Savings Generation ($S_{\text{financial}}$)**
+##### Step 4: Financial Savings Generation ($S_{\text{financial}}$)
 The ultimate localized fiscal impact uses the specific blended rate ($R_{\text{utility}}$) injected during Stage 2:
 
 $$S_{\text{financial}} = E_{\text{savings}} \times R_{\text{utility}}$$
 
-* $S_{\text{financial}}$ = Realized annual cost reduction in gross dollars ($\text{\$}$).
+* $S_{\text{financial}}$ = Realized annual cost reduction in gross USD.
 * $R_{\text{utility}}$ = Localized blended utility rate (`blended_utility_rate_kwh`).
 
 #### 5.9.4 — Output Schema (Calculated Savings Object)
@@ -536,7 +539,7 @@ The cluster object is updated with the complete deterministic physics payload:
   "validation_status": "CLEARED"
 }
 ```
-```markdown
+
 ### 5.10 — STAGE 10: Finding Pool Distribution and Output Validation
 
 #### 5.10.1 — Purpose
