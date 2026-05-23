@@ -51,3 +51,4 @@ flowchart TD
     S10 --> Val{Physics Check}
     Val -->|Exceeds Cap| Err[Trigger Calibration Error]
     Val -->|Passed| Output[Output Pools: Guarantee / Added Value / Baseline]
+```
