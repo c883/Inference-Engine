@@ -163,7 +163,7 @@ flowchart TD
     %% --- LAYER 2: GLOBAL CONTEXT INGESTION ---
     subgraph L2 [2. MACRO BASELINE CONTAINER]
         FormCheck -->|YES| S2[Stage 2: Inject Global Context & Fallback Defaults]
-        D[("Engagement Profile / Appendix A")] --> S2
+        D[(Engagement Profile / Appendix A)] --> S2
     end
     style L2 fill:#fffaf0,stroke:#dd6b20,stroke-width:1px
 
@@ -535,22 +535,22 @@ Successful execution updates the cluster with its verified physical control boun
 ### 5.6.5 — STAGE 6.5: Enrichment Review & Technical Confirmation
 
 #### 5.6.5.1 — Purpose
-To execute a structured, collaborative reconciliation workflow that resolves materially important unknowns, control ambiguities, and low-confidence field assumptions before final savings calculations lock . This layer enables continuous progress tracking in the field while preserving a strict, untamperable audit trail .
+To execute a structured, collaborative reconciliation workflow that resolves materially important unknowns, control ambiguities, and low-confidence field assumptions before final savings calculations lock. This layer enables continuous progress tracking in the field while preserving a strict, untamperable audit trail.
 
 #### 5.6.5.2 — Escalation Rules (Review Queue Ingestion)
-An equipment cluster is automatically flagged with an escalation token and routed into the human-in-the-loop review queue if it meets one or more of the following system-driven parameters :
+An equipment cluster is automatically flagged with an escalation token and routed into the human-in-the-loop review queue if it meets one or more of the following system-driven parameters:
 1. **Fallback Reliance:** The cluster context properties were resolved via the Stage 2 global catch-all layer (`source_documentation_ref == "GLOBAL_CATCH_ALL_FALLBACK"`).
-2. **Operational Boundary Disconnect:** The asset is marked with an active baseline exclusion dispute (`capability_code == "EXEMPT_ASSET"`), or the surveyor noted access limits via `why_not_enum == "Requires Permission"` .
-3. **Visibility Gaps:** The physical control interface was completely unlocated during the session (`reach_evaluation_code == "P7_RULE_CONTROL_NOT_FOUND"`), meaning local connectivity maps remain unverified .
+2. **Operational Boundary Disconnect:** The asset is marked with an active baseline exclusion dispute (`capability_code == "EXEMPT_ASSET"`), or the surveyor noted access limits via `why_not_enum == "Requires Permission"`.
+3. **Visibility Gaps:** The physical control interface was completely unlocated during the session (`reach_evaluation_code == "P7_RULE_CONTROL_NOT_FOUND"`), meaning local connectivity maps remain unverified.
 
 #### 5.6.5.3 — Human Ingestion State Machine
-While inside the reconciliation module, the cluster tracks through six distinct data states. Original field discovery observations remain completely immutable throughout this lifecycle :
-* `UNRESOLVED` — Ingested and awaiting engineering review or customer document attachment .
-* `CUSTOMER_SUBMITTED` — Customer has attached supporting cut-sheets, building automation schedules, or panel metrics .
-* `UNDER_REVIEW` — Analyst is validating documentation alignment against reference libraries .
-* `CONFIRMED` — Submission validated. Analyst updates `resolved_control_domain` or technical parameters and flips `is_default_applied = false` .
-* `REJECTED` — Evidence insufficient. Fallback configurations are maintained, and rationale is preserved in the audit metadata .
-* `LOCKED` — Verification frozen. Payload is passed back to the core pipeline for operational reach and physics evaluation .
+While inside the reconciliation module, the cluster tracks through six distinct data states. Original field discovery observations remain completely immutable throughout this lifecycle:
+* `UNRESOLVED` — Ingested and awaiting engineering review or customer document attachment.
+* `CUSTOMER_SUBMITTED` — Customer has attached supporting cut-sheets, building automation schedules, or panel metrics.
+* `UNDER_REVIEW` — Analyst is validating documentation alignment against reference libraries.
+* `CONFIRMED` — Submission validated. Analyst updates `resolved_control_domain` or technical parameters and flips `is_default_applied = false`.
+* `REJECTED` — Evidence insufficient. Fallback configurations are maintained, and rationale is preserved in the audit metadata.
+* `LOCKED` — Verification frozen. Payload is passed back to the core pipeline for operational reach and physics evaluation.
 
 #### 5.6.5.4 — Output Schema (Reconciled Cluster Object)
 ```json
@@ -669,7 +669,9 @@ The engine is prohibited from auto-assigning a structural capital deficiency on 
 
 ---
 
-### 5.9 — STAGE 9: Measure Generation and Savings Calculation
+## SECTION 3 — Measure Generation and Savings Calculation
+
+### 5.9 — Measure Generation and Savings Calculation
 
 #### 5.9.1 — Purpose
 To run the deterministic engineering physics core. This stage calculates the baseline power load, annual unmanaged waste run-time hours, net energy reduction, and financial impacts of the proposed intervention. All equations are strictly bounded by asset taxonomy constants and the telemetry decay values assigned upstream.
@@ -809,7 +811,7 @@ Successful execution outputs a flat array of calculated measures stamped with tr
 
 ## SECTION 6 — Centralized Data Dictionary & Taxonomy
 
-This section serves as the single source of truth for all naming conventions, data schemas, internal state variables, and enum matrices utilized by the Inference Engine. All code implementations must adhere strictly to these exact string keys, data types, and case rules.
+ This section serves as the single source of truth for all naming conventions, data schemas, internal state variables, and enum matrices utilized by the Inference Engine. All code implementations must adhere strictly to these exact string keys, data types, and case rules.
 
 ### 6.1 — Core Entity Attributes (Field Capture Input Layer)
 These parameters originate directly from the frontend Discovery Studio UI as flat payload elements. They represent the un-mutated field state raw telemetry.
@@ -835,7 +837,7 @@ These attributes are injected dynamically or appended as wrapper metadata proper
 | `pipeline_status` | String | `"gate1_passed"`, `"EXEMPT_ASSET_SHORT_CIRCUIT"` | Stage 5 (Exemption Gate) | Stateful validation token defining execution path eligibility. `"gate1_passed"` advances to domain allocation; short-circuits lock run hours to zero. |
 | `capability_code` | String | `"EXEMPT_ASSET"`, `"FUNCTIONAL_OPTIMIZABLE"` | Stage 5 (Exemption Gate) | Classification tracker denoting whether an asset represents an optimized candidate measure or an immutable, protected facility baseline. |
 | `control_domain_type` | String | `"CENTRAL_PANEL_LOOP"`, `"AUTOMATED_SCHEDULE"`, `"LOCAL_MANUAL_SWITCH"` | Stage 6 (Allocation Layer) | Explicit structural vector mapping indicating where physical, programmatic, or administrative corrections must take place. |
-| `reconciliation_status` | String | `"UNRESOLVED"`, `"CUSTOMER_SUBMITTED"`, `"UNDER_REVIEW"`, `"CONFIRMED"`, `"REJECTED"`, `"LOCKED"` | Stage 6.5 (Enrichment Layer) | Active governance parameter tracking human-in-the-loop tracking interactions for anomalous asset nodes . |
+| `reconciliation_status` | String | `"UNRESOLVED"`, `"CUSTOMER_SUBMITTED"`, `"UNDER_REVIEW"`, `"CONFIRMED"`, `"REJECTED"`, `"LOCKED"` | Stage 6.5 (Enrichment Layer) | Active governance parameter tracking human-in-the-loop tracking interactions for anomalous asset nodes. |
 | `operational_reach_status`| String | `"YES"`, `"NO"` | Stage 7 (Reach Evaluation) | Contractual and logistical binary recording whether the client organization possesses immediate organizational authority over the control layer. |
 | `assigned_action_path` | String | `"Green"`, `"Yellow"`, `"Red"` | Stages 7 & 8 (Performance Map) | Ultimate color-token risk classification determining programmatic execution friction and the nature of the optimization effort. |
 
@@ -937,65 +939,4 @@ flowchart TD
 
 ### 6.6 — Data Lifecycle & Immutability Matrix
 
-To enforce the *Immutable Data Lineage* principle defined in Section 2.3, variables are strictly bounded by access lifecycles. Once a variable hits its lock state, any programmatic attempt by a downstream stage to overwrite its value must trigger an execution failure (`ERR_CRITICAL_IMMUTABILITY_VIOLATION`) and abort the entire run pool.
-
-| Variable Name | Initialization Point | Lifecycle State | Write Access Authority | Lock Point |
-| :--- | :--- | :--- | :--- | :--- |
-| `observation_id` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
-| `space_id` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
-| `asset_sub_class` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
-| `field_count` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
-| `did_you_turn_off` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
-| `why_not_enum` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
-| `resolved_control_domain` | Stage 2 Ingestion | **Write-Once** | Stage 2 Ingestion Hook | Post-Stage 2 Termination |
-| `associated_panel_id` | Stage 2 Ingestion | **Write-Once** | Stage 2 Ingestion Hook | Post-Stage 2 Termination |
-| `is_default_applied` | Stage 2 Ingestion | **Read-Only** | Stage 2 Ingestion Hook | Post-Stage 2 Termination |
-| `telemetry_decay_factor` | Stage 3 Filter | **Write-Once** | Stage 3 Telemetry Filter | Post-Stage 3 Termination |
-| `pipeline_status` | Stage 5 Resolution | **Stateful Mutable** | Stages 5 & 6 Logic Trees | Post-Stage 6 Termination |
-| `capability_code` | Stage 5 Resolution | **Write-Once** | Stage 5 Exemption Logic | Post-Stage 5 Termination |
-| `control_domain_type` | Stage 6 Allocation | **Write-Once** | Stage 6 Allocation Loop | Post-Stage 6 Termination |
-| `reconciliation_status` | Stage 6.5 Enrichment | **Stateful Mutable** | Analyst Active Evaluation Desk | Post-Stage 6.5 Termination |
-| `operational_reach_status`| Stage 7 Evaluation | **Write-Once** | Stage 7 Reach Evaluation | Post-Stage 7 Termination |
-| `assigned_action_path` | Stages 7 & 8 | **Write-Once** | Stage 7 (Green) \| Stage 8 | Post-Stage 8 Termination |
-| `calculated_p_load_kw` | Stage 9 Math Core | **Append-Only** | Stage 9 Physics Module | Post-Stage 9 Termination |
-| `calculated_h_reduction` | Stage 9 Math Core | **Append-Only** | Stage 9 Physics Module | Post-Stage 9 Termination |
-| `annual_energy_savings_kwh`| Stage 9 Math Core | **Append-Only** | Stage 9 Physics Module | Post-Stage 9 Termination |
-| `annual_financial_savings_usd`| Stage 9 Math Core | **Append-Only** | Stage 9 Physics Module | Post-Stage 9 Termination |
-
-### 6.7 — Strict Structural Boundary Constraints
-
-Every numerical and string field must be strictly validated against primitive constraints at its initialization step before being passed to downstream mathematical equations.
-
-#### 1. Text Format Regex Constraints
-* **UUID Verification (`observation_id`):** Must conform to a strict lowercase ASCII UUIDv4 pattern.
-  ```regex
-  ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
-  ```
-* **Space Layout Alignment (`space_id`):** Must strictly match uppercase alphanumeric entries with mandatory region-dash separators (e.g., `NR-1101`). No special character injection allowed.
-  ```regex
-  ^[A-Z0-9]+-[A-Z0-9]+$
-  ```
-
-#### 2. Mathematical Boundary Tolerances
-* **Tally Discretization (`field_count`):** Must be stored and validated as a strict positive integer. Decimals, fractional tallies, or zeros trigger instant schema drop conditions.
-  $$\text{Value Constraints: } x \in \mathbb{Z}^+, \quad x \ge 1$$
-* **Telemetry Attenuation (`telemetry_decay_factor`):** Validated as a fixed-point floating element representing fractional retention. Boundaries are inclusive; values exceeding unity are blocked.
-  $$\text{Value Constraints: } x \in \mathbb{R}, \quad 0.0 \le x \le 1.0$$
-* **Physical Energy Allocations (`calculated_p_load_kw`):** Floating point expressions are structurally locked to a maximum of **three decimal places** of precision to prevent floating-point rounding divergence between database engines and language runtimes.
-  $$\text{Value Constraints: } x > 0.000$$
-
----
-
-## APPENDIX A — Centralized Control Assumption Defaults Matrix
-
-This operational matrix defines the system-level fallback `resolved_control_domain` configurations utilized by the Stage 2 Ingestion Engine when matching infrastructure linkages are absent from onboarding facility databases. These values allow progress calculations to execute seamlessly while logging audit transparency via the `is_default_applied = true` ledger flag.
-
-| Asset Sub-Class Category Group | Target `asset_sub_class` Key | Centralized Fallback `resolved_control_domain` | Engineering Structural Basis / Assumption |
-| :--- | :--- | :--- | :--- |
-| **Accent / Specialty Lighting** | `LIGHTING_DISPLAY_ACCENT` | `"LOCAL_MANUAL_SWITCH"` | High probability of independent architectural wall toggles or local toggle isolation. |
-| **Downlighting Infrastructure** | `LIGHTING_RECESSED_CAN` | `"LOCAL_MANUAL_SWITCH"` | Assumed standard room-level grid switching configurations. |
-| **Central Area Grid Lighting** | `LIGHTING_LINEAR_FLUORESCENT` | `"BMS_RELAY_PANEL"` | Large office overhead open-bays typically default to centralized panel relay control sweeps. |
-| **External Security Systems** | `LIGHTING_EXTERIOR_FLOOD` | `"AUTOMATED_SCHEDULE"` | Exterior safety elements are universally assumed to run on astronomical timeclocks or phototransistor loops. |
-| **Decorative Display Elements**| `LIGHTING_NEON_SIGNAGE` | `"LOCAL_MANUAL_SWITCH"` | Accent retail neon typical configuration relies on physical under-counter manual plugin or toggle points. |
-| **Emergency Direct Loads** | `LIGHTING_EXIT_SIGN` | `"BMS_RELAY_PANEL"` | Life-safety infrastructure elements operate continuously on non-switched dedicated circuits. |
-```
+To enforce the *Immutable Data Lineage* principle defined in Section 2.3, variables are strictly bounded by access lifecycles. Once a variable hits its lock state, any programmatic attempt by a downstream stage to overwrite its value must trigger an execution failure (`ERR_CRITICAL
