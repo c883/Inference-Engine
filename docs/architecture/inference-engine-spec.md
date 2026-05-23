@@ -806,3 +806,114 @@ The final delivered execution packet compiles the isolated pools into a single, 
   "isolated_review_bucket": []
 }
 ```
+### 6.5 — Taxonomic Relationship Schematic
+
+The visualization below organizes the data dictionary variables into vertically stacked execution containers, demonstrating the clear boundaries and relational handoffs between raw input fields, machine state tracks, the physics math module, and the final storage destinations:
+
+```mermaid
+flowchart TD
+    %% Custom Visual Style Elements for Structural Cleanliness
+    classDef inputs fill:#fff5f5,stroke:#e53e3e,stroke-width:2px,color:#2d3748;
+    classDef states fill:#fffaf0,stroke:#dd6b20,stroke-width:2px,color:#2d3748;
+    classDef outputs fill:#f0fff4,stroke:#38a169,stroke-width:2px,color:#2d3748;
+    classDef targets fill:#ebf8ff,stroke:#2b6cb0,stroke-width:2px,color:#2d3748;
+
+    %% 1. RAW DATA DATA ACQUISITION CONTAINER
+    subgraph Container_In ["📦 FIELD CAPTURE PAYLOAD (Section 6.1)"]
+        direction LR
+        I1["`**observation_id**`"]:::inputs
+        I2["`**space_id**`"]:::inputs
+        I3["`**asset_sub_class**`"]:::inputs
+        I4["`**field_count**`"]:::inputs
+        I5["`**did_you_turn_off**`"]:::inputs
+        I6["`**why_not_enum**`"]:::inputs
+    end
+    style Container_In fill:#fff5f5,stroke:#e53e3e,stroke-width:1px
+
+    %% 2. INTERNAL BACKEND PROCESSING STATE MACHINE CONTAINER
+    subgraph Container_State ["⚙️ PIPELINE STATE WRAPPER (Section 6.2)"]
+        direction LR
+        V1["`**resolved_control_domain**`"]:::states
+        V2["`**associated_panel_id**`"]:::states
+        V3["`**telemetry_decay_factor**`"]:::states
+        V4["`**pipeline_status**`"]:::states
+        V5["`**capability_code**`"]:::states
+        V6["`**control_domain_type**`"]:::states
+        V7["`**operational_reach_status**`"]:::states
+        V8["`**assigned_action_path**`"]:::states
+    end
+    style Container_State fill:#fffaf0,stroke:#dd6b20,stroke-width:1px
+
+    %% 3. ENGINEERING PHYSICS CORE MATHEMATICS CONTAINER
+    subgraph Container_Math ["🧮 PHYSICS CALCULATIONS (Section 6.3)"]
+        direction LR
+        M1["`**calculated_p_load_kw**`"]:::outputs
+        M2["`**calculated_h_reduction**`"]:::outputs
+        M3["`**annual_energy_savings_kwh**`"]:::outputs
+        M4["`**annual_financial_savings_usd**`"]:::outputs
+    end
+    style Container_Math fill:#f0fff4,stroke:#38a169,stroke-width:1px
+
+    %% 4. MASTER COMPILATION OUTPUT STORAGE POOLS
+    subgraph Container_Pool ["🎯 TARGET OUTPUT POOLS (Section 6.3)"]
+        direction LR
+        T1[("(guarantee) Array")]:::targets
+        T2[("(added_value) Array")]:::targets
+        T3[("(baseline) Array")]:::targets
+    end
+    style Container_Pool fill:#ebf8ff,stroke:#2b6cb0,stroke-width:1px
+
+    %% --- MACRO CONTAINER BOUNDARY RELATIONSHIPS ---
+    Container_In ===>|1. Onboarding DB Joins & Dropdown Verification| Container_State
+    Container_In ===>|2. Raw Counts & Taxonomy Constants| Container_Math
+    Container_State --->|3. Decay Modifiers & Short-Circuit Locks| Container_Math
+    Container_Math ===>|4. Magnitude & Exemption Threshold Sorting| Container_Pool
+    Container_State -.->|Bypass Path for Non-Optimizable Baselines| Container_Pool
+```
+
+### 6.6 — Data Lifecycle & Immutability Matrix
+
+To enforce the *Immutable Data Lineage* principle defined in Section 2.3, variables are strictly bounded by access lifecycles. Once a variable hits its lock state, any programmatic attempt by a downstream stage to overwrite its value must trigger an execution failure (`ERR_CRITICAL_IMMUTABILITY_VIOLATION`) and abort the entire run pool.
+
+| Variable Name | Initialization Point | Lifecycle State | Write Access Authority | Lock Point |
+| :--- | :--- | :--- | :--- | :--- |
+| `observation_id` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
+| `space_id` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
+| `asset_sub_class` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
+| `field_count` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
+| `did_you_turn_off` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
+| `why_not_enum` | Frontend UI Capture | **Read-Only** | None (Ingestion Only) | Pre-Stage 1 Ingestion Gate |
+| `resolved_control_domain` | Stage 2 Ingestion | **Write-Once** | Stage 2 Ingestion Hook | Post-Stage 2 Termination |
+| `associated_panel_id` | Stage 2 Ingestion | **Write-Once** | Stage 2 Ingestion Hook | Post-Stage 2 Termination |
+| `telemetry_decay_factor` | Stage 3 Filter | **Write-Once** | Stage 3 Telemetry Filter | Post-Stage 3 Termination |
+| `pipeline_status` | Stage 5 Resolution | **Stateful Mutable** | Stages 5 & 6 Logic Trees | Post-Stage 6 Termination |
+| `capability_code` | Stage 5 Resolution | **Write-Once** | Stage 5 Exemption Logic | Post-Stage 5 Termination |
+| `control_domain_type` | Stage 6 Allocation | **Write-Once** | Stage 6 Allocation Loop | Post-Stage 6 Termination |
+| `operational_reach_status`| Stage 7 Evaluation | **Write-Once** | Stage 7 Reach Evaluation | Post-Stage 7 Termination |
+| `assigned_action_path` | Stages 7 & 8 | **Write-Once** | Stage 7 (Green) \| Stage 8 | Post-Stage 8 Termination |
+| `calculated_p_load_kw` | Stage 9 Math Core | **Append-Only** | Stage 9 Physics Module | Post-Stage 9 Termination |
+| `calculated_h_reduction` | Stage 9 Math Core | **Append-Only** | Stage 9 Physics Module | Post-Stage 9 Termination |
+| `annual_energy_savings_kwh`| Stage 9 Math Core | **Append-Only** | Stage 9 Physics Module | Post-Stage 9 Termination |
+| `annual_financial_savings_usd`| Stage 9 Math Core | **Append-Only** | Stage 9 Physics Module | Post-Stage 9 Termination |
+
+### 6.7 — Strict Structural Boundary Constraints
+
+Every numerical and string field must be strictly validated against primitive constraints at its initialization step before being passed to downstream mathematical equations.
+
+#### 1. Text Format Regex Constraints
+* **UUID Verification (`observation_id`):** Must conform to a strict lowercase ASCII UUIDv4 pattern.
+  ```regex
+  ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+  ```
+* **Space Layout Alignment (`space_id`):** Must strictly match uppercase alphanumeric entries with mandatory region-dash separators (e.g., `NR-1101`). No special character injection allowed.
+  ```regex
+  ^[A-Z0-9]+-[A-Z0-9]+$
+  ```
+
+#### 2. Mathematical Boundary Tolerances
+* **Tally Discretization (`field_count`):** Must be stored and validated as a strict positive integer. Decimals, fractional tallies, or zeros trigger instant schema drop conditions.
+  $$\text{Value Constraints: } x \in \mathbb{Z}^+, \quad x \ge 1$$
+* **Telemetry Attenuation (`telemetry_decay_factor`):** Validated as a fixed-point floating element representing fractional retention. Boundaries are inclusive; values exceeding unity are blocked.
+  $$\text{Value Constraints: } x \in \mathbb{R}, \quad 0.0 \le x \le 1.0$$
+* **Physical Energy Allocations (`calculated_p_load_kw`):** Floating point expressions are structurally locked to a maximum of **three decimal places** of precision to prevent floating-point rounding divergence between database engines and language runtimes.
+  $$\text{Value Constraints: } x > 0.000$$
