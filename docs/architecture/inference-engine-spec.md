@@ -254,7 +254,8 @@ The clustering loop is completely deterministic and operates on a strict composi
 
 2. **Aggregation Agglomeration:**
    * For matching nodes, the totalized count ($C_{\text{cluster}}$) is calculated as the sum of all individual field counts:
-     $$C_{\text{cluster}} = \sum_{i=1}^{n} \text{field\_count}_i$$
+     $$C_{\text{cluster}} = \sum_{i=1}^{n} C_i$$
+   * Where $C_i$ represents the individual `field_count` value for node $i$.
    * Individual `observation_id` string flags are aggregated into a flat tracking array (`source_observation_ids`) to preserve data lineage for downstream audits.
 
 3. **Context Reconciliation:**
