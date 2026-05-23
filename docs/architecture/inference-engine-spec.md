@@ -13,11 +13,15 @@ To maintain structural agility and prevent logic fragmentation, the system enfor
 
 ```mermaid
 flowchart LR
+    %% Custom Styles for Visual Alignment
     classDef frontend fill:#ebf8ff,stroke:#2b6cb0,stroke-width:2px,color:#1a365d;
     classDef backend fill:#f0fff4,stroke:#38a169,stroke-width:2px,color:#22543d;
 
-    UI["Discovery Studio (UI)<br><small>Stateless Field Data Capture</small>"]:::frontend
-    ENGINE["Inference Engine<br><small>Deterministic State Machine</small>"]:::backend
+    UI["`**Discovery Studio (UI)**
+    Stateless Field Data Capture`"]:::frontend
+    
+    ENGINE["`**Inference Engine**
+    Deterministic State Machine`"]:::backend
 
     UI -->|Raw JSON Payload| ENGINE
     ENGINE -.->|Processed Run Pool| UI
