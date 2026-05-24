@@ -3,6 +3,7 @@
 **Document Identifier:** DW-T3-05  
 **Tier:** 3 — Engineering Track  
 **Location:** GitHub `docs/05_API_Contracts.md` (canonical)  
+**Status:** Draft scaffold — field-level content sourced from `01_Discovery_Studio_Config_Spec` and IE spec. Endpoint architecture, session lifecycle, HTTP conventions, and error codes require engineering review before implementation.
 **Version:** 1.0  
 **Date:** May 2026
 
