@@ -1,327 +1,185 @@
-# Deepwalk — System Architecture Master
+# System Architecture Master
 
-**Document Identifier:** DW-ARCH-MASTER  
-**Version:** 1.0  
-**Date:** May 2026  
-**Status:** Authoritative — all new and updated documents must cite this document for tier assignment and cross-reference rules.
+**Document Identifier:** DW-MASTER
+**Tier:** 3 — Engineering Track (governing document)
+**Location:** GitHub `docs/SYSTEM_ARCHITECTURE_MASTER.md` (canonical)
+**Version:** 1.1
+**Date:** May 2026
+**Supersedes:** Version 1.0
 
-**Canonical location:** `docs/SYSTEM_ARCHITECTURE_MASTER.md` (GitHub — this is the authoritative version)  
-**Operational reference copy:** Google Drive, linked from the V4 Decision Register. If the two copies ever conflict, GitHub is correct.
-
-**Supersedes:** Deepwalk Discovery Studio Design v1 (Part 1 + Part 2 combined). Those two documents are retired. Their content has been distributed into the tier structure defined here.
-
----
-
-## Purpose
-
-This document defines the complete documentation architecture for the Deepwalk platform. It assigns every current and planned specification document to its tier, states what each tier owns and does not own, and establishes the rules that prevent content from drifting across boundaries.
-
-**If you are a developer new to this codebase, start here.** This document tells you what every spec file owns, where it lives, and what it is allowed to touch. It is intentionally written to be readable by both operators and engineers. Read Part 1 (the tier model) and Part 5 (terminology) before opening any other spec.
-
-Every document in the Deepwalk spec library must open with a reference to this document and declare its tier. When any document is edited, the author checks whether the content being added belongs in that tier. If it does not, it becomes a cross-reference, not a reproduction.
+**Purpose:** This is the index document for the entire Deepwalk documentation library. Every spec document must open with a tier declaration and cite this document. If a discrepancy exists between this document and any other source, raise a Tier 1 Decision Register entry to resolve it — do not implement the discrepancy.
 
 ---
 
 ## Part 1 — The Four-Tier Model
 
-### Tier 1 — Decision Register
+All Deepwalk documentation is organized into four tiers with fixed locations and owners.
 
-**Location:** Google Drive  
-**Document:** Discovery Studio Project Reconciliation — Master Design & Architecture Specification (currently V4)  
+| Tier | Name | Location | Owner | Format |
+|------|------|----------|-------|--------|
+| 1 | Decision Register | GitHub `docs/decisions/` | Third Switch leadership | `.md` |
+| 2 | Conceptual / Operational Track | Google Drive | Product, methodology, ops | Google Docs |
+| 3 | Engineering Track | GitHub `docs/` | Engineering | `.md` |
+| 4 | Module Specs | GitHub `docs/modules/` | Assigned per module | `.md` |
+
+**Reference Library** — shared, not owned by any tier. GitHub `docs/reference/`. Version controlled alongside the Engineering Track. See Part 5.
+
+The governing principle: the tier a document belongs to determines its location, format, and update cadence. Documents do not move between tiers without a Tier 1 Decision Register entry.
+
+---
+
+## Part 2 — Tier 1: Decision Register
+
+**Location:** GitHub `docs/decisions/`
 **Owner:** Third Switch leadership
+**Canonical file:** `docs/decisions/DECISIONS_REGISTER.md`
 
-**What it owns:**
-- Architectural decisions that resolve conflicts between the Conceptual/Operational Track and the Engineering Track
-- Schema name locks and canonical field registry decisions
-- Stage-level design choices (e.g., Stage 6 deterministic rule tree vs. scoring matrix)
-- Output format decisions (e.g., flat array vs. named pools)
-- Terminology harmonization rulings
+The Decision Register records all architectural decisions that govern the Deepwalk system. Decisions are immutable once resolved. Open and parked items are tracked in the same document.
 
-**Rules:**
-- Stays short. Decision-only. No content duplication from other tiers.
-- Any decision touching both tracks is logged here first, then propagated. Never the other way around.
-- Versioned with a letter suffix on major decisions (V4 → V5).
-- Is the enforcement point for disputes between documents.
+Every new architectural decision — schema changes, terminology changes, pipeline modifications, document location changes — requires a Decision Register entry before implementation.
 
 ---
 
-### Tier 2 — Conceptual / Operational Track
+## Part 3 — Tier 2: Conceptual / Operational Track
 
-**Location:** Google Drive  
-**Owner:** Third Switch — product, methodology, and operations
+**Location:** Google Drive
+**Owner:** Product, methodology, operations
+**Format:** Google Docs
 
-**What it owns:**
-- Foundational principles (P1–P9)
-- The P8 classification decision tree (four gates: Asset Condition, Control Layer, Access, Barrier Nature)
-- Domain definitions (Human / Boundary / Mechanical) and action path definitions (Green / Yellow / Red)
-- P5 (Domain and Action Path Independence)
-- P4 (Classification Describes, Not Assesses — language rules for all documents and reports)
-- P6 (Time of Reference)
-- P7 (Access and Normal Operational Reach)
-- Role definitions, responsibilities, domain/action path biases, team sizing
-- Full engagement pipeline (Pre-session through Report Compiler and downstream modules)
-- Owl and Bulldog definitions, scope, and inference effects
-- Analysis Boundary Gate logic and scope exclusion reason codes (including `exempt_asset`)
-- Session Enrichment Context — tiers, objects, pipeline behavior
-- Observation Quality Taxonomy (Types 1–7)
-- Wattage Fallback Hierarchy (as a formal 4-step lookup rule)
-- Confidence model and priority scoring framework
-- Facilitator Review Layer — mandatory triggers, available actions, audit trail rules
-- Open items log
+Tier 2 documents define the operational framework, role definitions, and methodology that govern how Deepwalk is executed. They are written for product owners, methodology leads, and field operations — not for engineers implementing the system.
 
-**What it does not own:**
-- JSON schemas, field name definitions, or enum value lists → Tier 3
-- Error codes → Tier 3
-- Stage pseudocode or cascade logic → Tier 3
-- API endpoint definitions → Tier 3
-- Module-specific pipeline logic → Tier 4
+**Tier 2 documents do not own schemas, field names, or enum values.** Those are owned by Tier 3 and Tier 4 documents. When a Tier 2 document references a field name or enum value, it cites the canonical Tier 3 or Tier 4 source.
 
-**Cross-reference rule:** When a Tier 2 document references a schema field, it uses the canonical name from Tier 3 (`01_Discovery_Studio_Config_Spec`) and does not redefine it.
+### Tier 2 document index
+
+| Document | File | Version | Notes |
+|----------|------|---------|-------|
+| Surveyor Roles | `08_Surveyor_Roles` | 2.0 | Role definitions, Bulldog quick-capture, domain/action path bias |
+| Scoping + Ingestion | `09_Scoping_Ingestion` | 2.0 | Tier A/B/C input framework, SessionEnrichmentContext object |
+| Review Workflow Spec | `07_Review_Workflow_Spec` | 2.0 | Facilitator review layer; post-session Analyst/BD ownership; resolution state machine |
+| Enrichment Review + Technical Confirmation | `11_Deepwalk_Enrichment_Review_and_Technical_Confirmation_Spec` | — | P9 principle; customer-facing workflow |
+| Studio Design | `Studio_Design_v3.4` | 3.4 | P-principles; domain and action path definitions; Classification Gate logic |
 
 ---
 
-### Tier 3 — Engineering Track
+## Part 4 — Tier 3: Engineering Track
 
-**Location:** GitHub (`c883/Inference-Engine`, `docs/` directory)  
-**Owner:** Third Switch — engineering
+**Location:** GitHub `docs/`
+**Owner:** Engineering
+**Format:** `.md`
 
-**What it owns:**
-- Canonical `ObservationNode` schema with all required fields, data types, and validation rules
-- All field name canonical registry (the locked names from V4 Section 2)
-- `why_not` enum values (the six permitted strings + null)
-- `field_state_enum` values (`ON`, `OFF`, `AUTO`)
-- `surveyor_role` enum values (`M3`, `LO`, `TV`, `SS`, `Facilitator`)
-- `out_of_scope_reason` enum values (five sanctioned codes)
-- Error codes (`ERR_` prefix system)
-- 10-stage pipeline pseudocode and stage-level input/output schemas
-- Stage 2 cascade fallback logic (Table A / Table B / Appendix A / Global Catch-All)
-- Stage 6 deterministic rule tree (locked per V4)
-- Stage 10 flat array output contract with boolean flags (`is_guaranteed_saving`, `is_exempt_baseline`)
-- `portfolio_spend_cap_kwh` as the canonical portfolio cap field (loaded Stage 2)
-- API endpoint definitions, payload contracts, validation constraint logic
-- Spatial model contract (space_id, sticky map mechanic, forensic timestamp sequencing)
-- Data dictionary and immutability matrix
-- Centralized Control Assumption Defaults Matrix (Appendix A)
-- Engineering design principles: Zero Implicit Inference, Fail-Fast Pipeline Isolation, Immutable Data Lineage
+Tier 3 documents are the canonical source of truth for all schema definitions, field names, data types, permitted values, and pipeline logic. All code, API contracts, and database schemas derive from Tier 3 documents. If a discrepancy exists between a Tier 3 document and any other source, the Tier 3 document is correct.
 
-**What it does not own:**
-- P-principles (P1–P9) → Tier 2
-- Gate logic (P8 decision tree) → Tier 2
-- Domain or action path definitions → Tier 2
-- Role descriptions or methodology → Tier 2
-- Module pipeline logic (Report Compiler, Persistence Engine, Implementation Support) → Tier 4
+### Tier 3 document index
 
-**Cross-reference rule:** When a Tier 3 document references classification logic (e.g., why a certain `why_not` value routes to a given stage), it cites Studio Design v3.4 Section P8 and does not restate the gate logic.
+| Document | File | Version | What it owns |
+|----------|------|---------|-------------|
+| Discovery Studio Config Spec | `docs/01_Discovery_Studio_Config_Spec.md` | 2.1 | Canonical `ObservationNode` schema; all field names, types, and permitted values; `BulldogObservation` schema; enum value registries; photo slot definitions; Facilitator pre-session configuration |
+| Spatial Model Spec | `docs/06_Spatial_Model_Spec.md` | 1.0 | `space_id`; sticky map system; forensic timestamp engine; `InaccessibleArea` |
+| API Contracts | `docs/05_API_Contracts.md` | 1.0 | API endpoint architecture (draft scaffold — engineering review required) |
+| Inference Engine Spec | `docs/architecture/inference-engine-spec.md` | 3.1 | Full pipeline stage pseudocode; Stage 6.5 Enrichment Review; human ingestion state machine; Owl and Bulldog inference logic |
+| System Architecture Master | `docs/SYSTEM_ARCHITECTURE_MASTER.md` | 1.1 | This document — library index and tier governance |
 
 ---
 
-### Tier 4 — Module Specs
+## Part 5 — Tier 4: Module Specs
 
-**Location:** Google Drive (conceptual/operational sections) + GitHub `docs/modules/` (engineering sections), as appropriate per module  
-**Owner:** Third Switch — assigned per module
+**Location:** GitHub `docs/modules/`
+**Owner:** Assigned per module
+**Format:** `.md`
 
-**Characteristics:**
-- Each module spec is self-contained and owns its own pipeline, data objects, and future libraries
-- References up to Tier 2 for principles and classification logic
-- References up to Tier 3 for schema field names and data contracts
-- Does not duplicate content from either track
+Tier 4 documents specify individual software modules — their inputs, outputs, schemas, business rules, and interface contracts with other modules. They are written for engineers implementing those specific modules.
 
-**Current modules:**
+### Tier 4 document index
 
-| Module | Status | Notes |
-|--------|--------|-------|
-| Report Compiler | Draft exists — needs full spec | Renders Tier 3 flat array output into named finding pools for PDF |
-| Measure Catalog Spec (`03_Measure_Catalog_Spec`) | Spec structure exists — needs completion | Translation spec: defines ingestion rules, mapping logic, and normalization process from external sources (DEER, manufacturer data, cut sheets, ENERGY STAR, DLC, ASHRAE) into Deepwalk catalog entries. Owns equipment_class taxonomy, version control system (Draft → Commit → Release), wattage library. The catalog itself is a separate living document in the Reference Library. |
-| Implementation Support | In progress | Downstream of Report Compiler; maps report outputs to customer systems and documentation; will have its own libraries |
-| Persistence Engine | Draft exists — needs harmonization | Longitudinal engagement layer; standalone CMMS-lite; annual subscription |
-
-**Architectural note on Implementation Support:** This is a contractual engagement module and a planned future engine. The term "implementation" in this module name refers to the customer's operational implementation of report findings — it is not the same as the Engineering Track (Tier 3). These must not be conflated in naming or folder structure.
+| Document | File | Version | What it owns |
+|----------|------|---------|-------------|
+| Measure Catalog Spec | `docs/modules/03_Measure_Catalog_Spec.md` | 1.0 | `equipment_class` taxonomy; `CatalogEntry` schema; version lifecycle; wattage fallback hierarchy; external source ingestion rules; IE interface contract |
+| Report Compiler Spec | `docs/modules/04_Report_Compiler_Spec.md` | 1.0 | Report section spec; finding pool rendering; Performance Map and Opportunity Value Map UI spec; photo rendering rules; P4 language compliance; Inference Summary spec |
+| Persistence Engine Spec | `docs/modules/10_Persistence_Engine_Spec.md` | 2.0 | PE product definition; follow-up observation form; signal review and validation; status model; dashboard spec; reporting cadences; annual true-up |
+| Implementation Support Spec | `docs/modules/Implementation_Support_Spec_v1.1.md` | 1.1 | Checklist spec; SOP framework; customer system mapping; CSV format spec; future library plan |
 
 ---
 
-### Reference Library
+## Part 6 — Reference Library
 
-**Location:** Google Drive  
-**Owner:** Third Switch — shared
+**Location:** GitHub `docs/reference/`
+**Owner:** Shared — maintained by Third Switch with engineering review
+**Format:** `.md`
 
-**Characteristics:**
-- Cross-referenced from any tier
-- Not owned by any single track
-- Updated when engagement data warrants expansion
+The Reference Library contains structured reference material that is consumed by multiple tiers but not owned by any single tier. It is version controlled in GitHub alongside the Engineering Track, enabling diff history, pull request review, and consistent access patterns.
 
-**Current documents:**
+Reference Library documents are not spec documents — they do not define pipeline logic or schema. They define the vocabulary, taxonomies, and recurring pattern libraries that the inference engine and report compiler consume.
 
-| Document | Version | Status |
-|----------|---------|--------|
-| Opportunity Signature Library | v1.0 | Exists — needs action path language harmonization |
-| Observability Scope Boundary Framework | v1.0 | Exists — needs `exempt_asset` terminology update |
-| Operational Load Taxonomy | v1.0 | Exists — minimal changes needed |
+### Reference Library document index
 
----
+| Document | File | Version | What it contains |
+|----------|------|---------|-----------------|
+| Opportunity Signature Library | `docs/reference/Opportunity_Signature_Library.md` | 1.1 | 8 recurring operational condition patterns; domain defaults; action path defaults; evidence requirements; candidate measures |
+| Observability Scope Boundary Framework | `docs/reference/Observability_Scope_Boundary_Framework.md` | 1.1 | Observability categories; exception types; `exempt_asset` boundary definition; scope exclusion reason codes; inference logic protocols |
+| Operational Load Taxonomy | `docs/reference/Operational_Load_Taxonomy.md` | 1.1 | 5 operational load categories; evidence classification; `exempt_asset` framing for process loads |
+| Measure Catalog | `docs/reference/02_Measure_Catalog.md` | living | Living catalog of equipment class entries — starts empty, populated through engagements per `03_Measure_Catalog_Spec` |
 
-## Part 2 — Full Document Registry
-
-Every current and planned document in the Deepwalk spec library, its tier, its location, and its status.
-
-### Tier 1
-
-| Document | Location | Version | Status |
-|----------|----------|---------|--------|
-| Master Design & Architecture Specification | Drive | V4 | Current |
-
-### Tier 2 — Conceptual / Operational Track
-
-| Document | Location | Version | Status |
-|----------|----------|---------|--------|
-| Studio Design (Discovery Studio Design Spec) | Drive | v3.4 | Current — authoritative |
-| Performance Map / Brief | Drive | v4 | Current — authoritative |
-| Enrichment Review & Technical Confirmation Spec | Drive | Revised draft | Current — needs P9, version number |
-| `08_Surveyor_Roles` | Drive | v1 draft | Needs role harmonization with v3.4 |
-| `09_Scoping_Ingestion` | Drive | v1.4 draft | Needs Tier A/B/C alignment with v3.4 |
-| `07_Review_Workflow_Spec` | Drive | v1 draft | Needs V4 role boundary update |
-| System Architecture Master (this document) | Drive → GitHub | v1.0 | New |
-
-### Tier 3 — Engineering Track
-
-| Document | Location | Version | Status |
-|----------|----------|---------|--------|
-| Inference Engine Spec | GitHub `docs/architecture/inference-engine-spec.md` | v3.1 Production | Current — authoritative |
-| `01_Discovery_Studio_Config_Spec` | GitHub `docs/` | Needs rewrite | V4 schema not yet reflected |
-| `05_API_Contracts` | GitHub `docs/` | Skeleton only | Needs full V4 ObservationNode contract |
-| `06_Spatial_Model_Spec` | GitHub `docs/` | Skeleton only | Needs sticky map + forensic timestamp spec |
-
-### Tier 4 — Module Specs
-
-| Document | Location | Version | Status |
-|----------|----------|---------|--------|
-| `04_Report_Compiler_Spec` | Drive + GitHub | Skeleton only | Needs full section spec + flat array rendering logic |
-| `03_Measure_Catalog_Spec` | Drive + GitHub | Structure exists | Translation spec — needs version control, wattage hierarchy, taxonomy registry, external source mapping rules |
-| `10_Persistence_Engine_Spec` | Drive | Draft exists | Needs role language harmonization (V4) |
-| `Implementation_Support_Spec` | Drive | v1.0 exists; v1.1 planned | Needs v1.1 update |
-
-### Reference Library
-
-| Document | Location | Version | Status |
-|----------|----------|---------|--------|
-| Opportunity Signature Library | Drive | v1.0 | Needs action path language update |
-| Observability Scope Boundary Framework | Drive | v1.0 | Needs `exempt_asset` terminology update |
-| Operational Load Taxonomy | Drive | v1.0 | Minor updates only |
-| Measure Catalog | Drive / TBD | v0 (empty) | Living library — populated through engagements by applying `03_Measure_Catalog_Spec`; starts empty and accumulates over time |
+**Note on `02_Measure_Catalog`:** This is a living document that grows with every engagement. It is governed by `03_Measure_Catalog_Spec` (Tier 4). It does not have a fixed version — individual entries are versioned per the `Draft → Commit → Release` lifecycle defined in the spec.
 
 ---
 
-## Part 3 — Production Wave Plan
+## Part 7 — Cross-Reference Rules
 
-Documents are written and updated in dependency order. Wave 1 must be complete before Wave 2 begins, because Wave 2 documents cite Wave 1 documents for field names, role definitions, and schema contracts.
+**Rule 1 — Tier 3 is authoritative for all schema.** No other document may define or modify field names, data types, permitted enum values, or validation rules. If a Tier 2 or Tier 4 document references a field name, it is citing Tier 3 — not defining it.
 
-### Wave 1 — Foundation
+**Rule 2 — Tier 2 is authoritative for methodology and roles.** Domain definitions, action path definitions, P-principles, and role responsibilities are defined in Tier 2 (Studio Design v3.4 and Surveyor Roles). Tier 3 and Tier 4 documents cite these definitions but do not redefine them.
 
-These documents define the terms that everything else references. They must be written or updated first.
+**Rule 3 — The Reference Library is consumed, not authored, by the pipeline.** The Inference Engine and Report Compiler read from the Reference Library. They do not write to it except where explicitly specified (e.g., `03_Measure_Catalog_Spec` Part 8.2 defines the one circumstance where the IE writes a new catalog entry).
 
-| # | Document | Tier | Primary changes |
-|---|----------|------|----------------|
-| 1 | System Architecture Master (this document) | 2 | New — written first |
-| 2 | `08_Surveyor_Roles` | 2 | Align role attributes with v3.4; add Bulldog quick-capture; confirm V4 role enums |
-| 3 | `01_Discovery_Studio_Config_Spec` | 3 | Full rewrite to V4 canonical ObservationNode schema; correct all field names; remove condition_enum from field form; add field_state_enum [ON/OFF/AUTO]; correct photo slot names |
+**Rule 4 — Changes to canonical locations require a Decision Register entry.** Moving a document between tiers, changing a file path, or changing location from Drive to GitHub requires a Tier 1 Decision Register entry before implementation.
 
-### Wave 2 — Core Specs
-
-Depend on Wave 1 for role definitions (08) and field schema (01).
-
-| # | Document | Tier | Primary changes |
-|---|----------|------|----------------|
-| 4 | `06_Spatial_Model_Spec` | 3 | Add sticky map mechanic; forensic timestamp sequencing; space_id as canonical token; ad-hoc anchor handling |
-| 5 | `05_API_Contracts` | 3 | Full V4 ObservationNode in each endpoint; why_not enum values; error codes; Bulldog endpoint; Stage 10 flat array output |
-| 6 | `09_Scoping_Ingestion` | 2 | Align Tier A/B/C with v3.4 Tier structure; reference SessionEnrichmentContext and AnalysisBoundary objects |
-| 7 | `07_Review_Workflow_Spec` | 2 | Update: Facilitator software loop ends at session close per V4; Analyst/BD owns Stage 6.5; align resolution states with Enrichment spec |
-| 8 | `03_Measure_Catalog_Spec` | 4 | Add version control system; equipment_class taxonomy registry; wattage fallback hierarchy as formal spec; DEER/ENERGY STAR/DLC integration |
-
-### Wave 3 — Downstream Modules and Reference Library
-
-Depend on Wave 2 for report format (05), measure structure (03), and role resolution (07).
-
-| # | Document | Tier | Primary changes |
-|---|----------|------|----------------|
-| 9 | `04_Report_Compiler_Spec` | 4 | Full section specs; flat array → named pool rendering logic; finding pool presentation; P4 language rules for narrative |
-| 10 | `10_Persistence_Engine_Spec` | 4 | Role language harmonization (Facilitator verification in PE is separate from post-session software loop); align with V4 |
-| 11 | `Implementation_Support_Spec_v1.1` | 4 | Update v1.0; document downstream position relative to Report Compiler; scope of customer system mapping; future library plan |
-| 12 | Opportunity Signature Library | Ref | Action path language: replace Operational/Coordination/Capital with Green/Yellow/Red per v3.4; verify P5 alignment |
-| 13 | Observability Scope Boundary Framework | Ref | Replace `necessary_baseload` with `exempt_asset` throughout; align exception codes with v3.4 five sanctioned reason codes |
-| 14 | Operational Load Taxonomy | Ref | Verify process load framing consistent with exempt_asset boundary logic; minor language alignment |
+**Rule 5 — Every document opens with a tier declaration.** The header of every spec and reference document must include Document Identifier, Tier, Location, and Version, and must cite `docs/SYSTEM_ARCHITECTURE_MASTER.md` as the architecture reference.
 
 ---
 
-## Part 4 — Governing Rules
+## Part 8 — Canonical Terminology Quick Reference
 
-These rules apply to every document in the Deepwalk spec library. They are enforced by the Tier 1 Decision Register.
-
-**Rule 1 — Every document declares its tier.**
-The document header states its tier, what it owns, and its primary cross-references. No exceptions.
-
-**Rule 2 — Content belongs to one tier.**
-If content belongs in a different tier, it is replaced with a cross-reference. Content is never reproduced across tiers.
-
-**Rule 3 — Decisions flow downward from Tier 1.**
-Any decision touching both Tier 2 and Tier 3 is logged in the Decision Register first. It then propagates into the relevant tier documents. Documents do not make decisions — they implement them.
-
-**Rule 4 — Field names are locked in Tier 3.**
-The canonical field name registry lives in `01_Discovery_Studio_Config_Spec` (Tier 3). All other documents use the locked names. If a name needs to change, it is logged as a decision in Tier 1 first.
-
-**Rule 5 — Principles are locked in Tier 2.**
-P1–P9 live in Studio Design v3.4. No other document restates or redefines a P-principle. References are by citation only: "per P4" or "see Studio Design v3.4 Part 1 P7."
-
-**Rule 6 — The Engineering Track does not explain why.**
-Tier 3 documents implement classification and routing logic. They do not explain the analytical reasoning behind it. That reasoning lives in Tier 2. A Tier 3 document says "per P8 Gate 3, route to Stage 8" — it does not restate what Gate 3 means.
-
-**Rule 7 — Module Specs cite both tracks.**
-Tier 4 documents reference Tier 2 for principles and Tier 3 for schemas. They never reproduce content from either.
-
-**Rule 8 — The Reference Library is stable.**
-Reference library documents are updated only when engagement data or new decisions require it. They do not track sprint-level changes.
+| Use this | Not this |
+|----------|----------|
+| `exempt_asset` | `necessary_baseload` |
+| `did_you_turn_it_off` | `did_you_turn_off` |
+| `fixture_count` | `field_count` |
+| `observation_type` | `asset_sub_class`, `asset_type_enum`, `Measure Type`, `Measure Category` |
+| `space_id` | `room_id`, `space_function` |
+| `field_state_enum` | `state` |
+| `why_not` | `why_not_enum` |
+| `"No Switch or Control Found"` | `"No Switch Present"`, `"Control Not Found"` |
+| Engineering Track | Programmatic Tier |
+| Green / Yellow / Red | Immediate / Coordination / Capital (as software output labels) |
+| Analyst / BD | Facilitator (for post-session software tasks) |
+| Context / Subject / Detail | Device Photo, Nameplate/Closeup (photo slot names) |
+| Tier A / B / C | Tier 1 / 2 / 3 (in scoping context) |
+| `docs/reference/` | Google Drive (for Reference Library) |
 
 ---
 
-## Part 5 — Canonical Terminology Quick Reference
+## Part 9 — Documents Requiring Harmonization
 
-The following terms are locked. All documents use these exact forms.
+The following documents contain outdated terminology or references. They are not yet updated. Until harmonization is complete, this document and the Tier 3 specs take precedence.
 
-| Canonical Term | Retired / Variant Terms | Notes |
-|----------------|------------------------|-------|
-| `exempt_asset` | `necessary_baseload` | Scope exclusion reason code; locked in v3.4 and IE V3.1 |
-| `did_you_turn_it_off` | `did_you_turn_off` | Field name; locked in V4 Section 2 |
-| `fixture_count` | `field_count` | Field name; locked in V4 Section 2 |
-| `observation_type` | `asset_sub_class`, `asset_type_enum`, `Measure Type`, `Measure Category` | UI triage key; maps to `equipment_class` in backend |
-| `space_id` | `room_id`, `space_function` | Canonical location token; backed by sticky map mechanic |
-| `field_state_enum` | `state` | Values: `ON`, `OFF`, `AUTO` |
-| `why_not` | `why_not_enum` | Six permitted values + null; defined in Tier 3 |
-| Green / Yellow / Red | Immediate / Coordination / Capital (as action path labels in software) | Action path colors are the canonical output labels; Immediate/Coordination/Capital are retained as human-readable descriptors in Tier 2 documents and reports |
-| Human / Boundary / Mechanical | — | Domain names; unchanged across all documents |
-| Conceptual Tier | — | The analytical/business logic layer described in Tier 2 (P8 gates) |
-| Engineering Track | Programmatic Tier (retired label) | The executable software pipeline in GitHub (Tier 3). "Programmatic Tier" appears in existing documents (GitHub README, v3.4 two-tier architecture section) and must be updated to "Engineering Track" as each of those documents is harmonized in its respective wave. |
-| Implementation Support | — | Contractual module; downstream of Report Compiler; not the same as "Engineering Track" |
-| Analyst / BD | Facilitator (for post-session software tasks) | Post-session software loop owner per V4 |
-| Photo slots: Context / Subject / Detail | Device Photo, Nameplate/Closeup | Slot names locked in v3.4 |
+| Document | Issue | Priority |
+|----------|-------|----------|
+| GitHub README pipeline diagram | References retired savings pools; outdated pipeline structure | Next harmonization wave |
+| `inference-engine-spec.md` Section 6.1 | Uses retired field names: `did_you_turn_off`, `field_count`, `asset_sub_class` | Next harmonization wave |
+| Studio Design v3.4 two-tier architecture section | Uses "Programmatic Tier" — replace with "Engineering Track" | Next harmonization wave |
 
 ---
 
-## Part 6 — Open Items Inherited at Architecture Level
+## Part 10 — Version History
 
-The following items are flagged at the architecture level and propagate into the relevant tier documents as open items.
-
-| # | Item | Tier | Target |
-|---|------|------|--------|
-| 1 | Stage 6 scoring matrix — shelved for V2; calibration target after first 3 engagements | 3 | Post-engagement |
-| 2 | Exempt Asset kWh estimation methodology — how Facilitator estimates annual kWh load for boundary deduction | 2 + 3 | Before first engagement with confirmed exempt assets |
-| 3 | Demand charge peak kWh reduction logic — Stage 9 references it; calculation not yet specified | 3 | Before first demand-charge engagement |
-| 4 | Access Tier field — future parallel descriptor alongside domain and action path | 2 | V2 |
-| 5 | ML-assisted inference — V1 is fully rules-based; portfolio ML is a future capability | 3 | Post-portfolio data accumulation |
-| 6 | UNCONTROLLED field state vocabulary — Stage 1 normalization keyword list; formal review after first 5 engagements | 3 | Post-engagement |
-| 7 | SEM Compliance Column — Willdan engagement requirement; CA SEM Guide SSA and EM number mapping | 2 | Before next SEM engagement |
-| 8 | Implementation Support future libraries — scope TBD as module matures | 4 | In progress |
-| ~~9~~ | ~~`02_Measure_Catalog` — clarify whether this is the catalog spec (Tier 4) or actual catalog entries (living reference)~~ | ~~4~~ | **Resolved:** `02_Measure_Catalog` is the living catalog library (Reference Library, starts empty, populated through engagements). `03_Measure_Catalog_Spec` is the Tier 4 translation spec that governs how external sources are ingested. These are distinct deliverables. |
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | May 2026 | Initial release — four-tier model established |
+| 1.1 | May 2026 | Reference Library relocated from Google Drive to GitHub `docs/reference/`; Tier 4 module specs relocated to GitHub `docs/modules/`; Decisions Register relocated to GitHub `docs/decisions/`; document indexes updated; harmonization table added |
 
 ---
 
-*Deep//Walk by Third Switch — Assurance at Scale*  
-*© 2026 Third Switch, LLC.*  
+*Deep//Walk by Third Switch — Assurance at Scale*
+*© 2026 Third Switch, LLC.*
 *This document is internal reference. Not for external distribution without review.*
