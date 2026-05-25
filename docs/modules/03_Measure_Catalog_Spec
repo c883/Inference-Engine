@@ -1,0 +1,326 @@
+# 03 — Measure Catalog Spec
+
+**Document Identifier:** DW-T4-03
+**Tier:** 4 — Module Spec
+**Location:** Google Drive (conceptual sections) + GitHub `docs/modules/` (engineering sections)
+**Version:** 1.0
+**Date:** May 2026
+
+**Architecture reference:** See `docs/SYSTEM_ARCHITECTURE_MASTER.md` for tier definitions and cross-reference rules.
+
+**What this document owns:** The `equipment_class` taxonomy registry and governance rules. The `CatalogEntry` object schema — all fields, types, and validation rules. The version control lifecycle (`Draft → Commit → Release`). The wattage fallback hierarchy as a formal lookup spec — the ordered sequence the Inference Engine must follow when resolving `W_fixture` for a given observation. The external source ingestion rules — how DEER, ENERGY STAR, DLC, ASHRAE, and manufacturer data are mapped into catalog entries. The interface contract between this module and the Inference Engine (Stage 2 and Stage 9). The relationship between this spec and the living catalog library (`02_Measure_Catalog`).
+
+**What this document does not own:** The living catalog entries themselves → `02_Measure_Catalog` (Reference Library). Stage 2 cascade pseudocode and control domain resolution logic → `docs/architecture/inference-engine-spec.md` (Tier 3). Stage 9 physics calculation constants including `H_waste` → `docs/architecture/inference-engine-spec.md` (Tier 3). The `observation_type` → `equipment_class` mapping relationship definition → `01_Discovery_Studio_Config_Spec` Part 4 (Tier 3). P-principles → Studio Design v3.4 (Tier 2).
+
+---
+
+## Part 1 — Purpose and Scope
+
+### 1.1 — What the Measure Catalog Is
+
+The Measure Catalog is the single runtime reference target for equipment wattage assumptions in the Deepwalk Inference Engine. When Stage 9 needs `W_fixture` for an equipment cluster, it queries the catalog. The pipeline does not query external sources (DEER, ENERGY STAR, DLC, ASHRAE, or manufacturer databases) at runtime. Those sources feed a catalog maintenance process that runs separately. The catalog is always what the Inference Engine hits.
+
+This architecture serves two goals. First, runtime performance — catalog lookups are fast and predictable; external source queries are not. Second, auditability — every wattage assumption used in a savings calculation is traceable to a specific versioned catalog entry with a known source and a known promotion history.
+
+### 1.2 — Two Distinct Deliverables
+
+This spec and the living catalog are separate deliverables with different owners and different update cadences. Conflating them is a persistent source of confusion and is explicitly prohibited.
+
+| Deliverable | Document | Type | Location | Content |
+|-------------|----------|------|----------|---------|
+| This spec | `03_Measure_Catalog_Spec` | Tier 4 — Module Spec | Drive + GitHub `docs/modules/` | Ingestion rules, schema, version lifecycle, fallback hierarchy, IE interface contract |
+| Living catalog | `02_Measure_Catalog` | Reference Library | Drive | Actual catalog entries — starts empty, populated through engagements and maintenance processes |
+
+### 1.3 — Platform Extensibility
+
+The catalog schema defined in this document is intentionally generic. No Deepwalk-specific concepts are baked into the schema. The `equipment_class` taxonomy is a Deepwalk-defined registry, but the schema that holds catalog entries can accommodate other use cases — other equipment domains, other external source mappings, other version workflows — without structural changes. This is a deliberate design constraint: the Discovery Studio toolset may be adapted for use cases beyond Deepwalk, and the catalog architecture must not foreclose that.
+
+---
+
+## Part 2 — The equipment_class Taxonomy
+
+### 2.1 — What equipment_class Is
+
+`equipment_class` is the canonical backend taxonomy key used throughout the Inference Engine. It is the key against which catalog entries are stored and looked up. It is `UPPER_SNAKE_CASE`. It is what `observation_type` (the UI-facing dropdown) maps to post-submission.
+
+The mapping relationship — how `observation_type` maps to `equipment_class` — is defined in `01_Discovery_Studio_Config_Spec` Part 4. This document owns the taxonomy values themselves: the canonical list of valid `equipment_class` keys, their definitions, and the governance rules for adding new keys.
+
+### 2.2 — Taxonomy Governance Rules
+
+**Rule 1 — `equipment_class` is a controlled vocabulary.** New values may not be introduced by surveyors, Facilitators, or Analysts. They are added through the taxonomy governance process defined in Part 2.3.
+
+**Rule 2 — Keys are immutable once committed.** An `equipment_class` key that has been used in a `Commit` or `Release` status entry may not be renamed or deleted. Deprecated classes are marked `DEPRECATED` and excluded from new session configuration, but their catalog entries and historical records are preserved.
+
+**Rule 3 — Keys are `UPPER_SNAKE_CASE`.** No exceptions. Spaces, hyphens, and mixed case are not valid.
+
+**Rule 4 — Each key maps to exactly one catalog entry at Release status.** Multiple `Draft` entries for the same key are permitted during development. Only one may be promoted to `Release` at a time.
+
+**Rule 5 — The taxonomy is versioned with the catalog.** Each catalog version carries the full set of valid `equipment_class` keys active at that version. The Facilitator pre-session configuration references a specific `catalog_version`, which determines which keys are available as `observation_type` options for that session (see `01_Discovery_Studio_Config_Spec` Part 10).
+
+### 2.3 — Adding a New equipment_class Key
+
+New keys are proposed when field observation encounters an equipment type not covered by the existing taxonomy. The process:
+
+1. Analyst identifies the gap during Enrichment Review or post-session data scrubbing
+2. Proposed key and definition are submitted to Third Switch review
+3. Key is added to the taxonomy registry as `PROPOSED` — not yet available for session configuration
+4. A `Draft` catalog entry is created for the new key
+5. Entry is promoted through `Draft → Commit → Release` per Part 4
+6. On `Release`, the key status advances to `ACTIVE` and becomes available for session configuration in the next catalog version
+
+Until a key reaches `Release` status, it may not be used as a session `observation_type` option.
+
+---
+
+## Part 3 — CatalogEntry Object Schema
+
+Every entry in `02_Measure_Catalog` conforms to the following schema. Fields marked **Required** must be populated before an entry can advance beyond `Draft` status. Fields marked **Release-required** must be populated before an entry can advance to `Release` status.
+
+```json
+{
+  "CatalogEntry": {
+    "entry_id":                      "STRING    — UUID. Auto-generated at Draft creation.",
+    "equipment_class":               "STRING    — UPPER_SNAKE_CASE. Must be ACTIVE in taxonomy registry. Required.",
+    "display_name":                  "STRING    — Human-readable name for UI display and reports. Required.",
+    "description":                   "STRING    — Plain-language definition of what this class covers and its boundaries. Required.",
+    "w_fixture_w":                   "FLOAT     — Baseline wattage constant in watts. Release-required.",
+    "w_fixture_source":              "STRING    — Source of the wattage value. See Part 5 for permitted values. Release-required.",
+    "w_fixture_source_ref":          "STRING    — Citation, URL, document name, or database record ID. Release-required.",
+    "w_fixture_confidence":          "ENUM      — LOW / MEDIUM / HIGH. Reflects source quality and specificity. Release-required.",
+    "manufacturer":                  "STRING    — Optional. Populated when entry is manufacturer/model specific.",
+    "model":                         "STRING    — Optional. Populated when entry is manufacturer/model specific.",
+    "component_resolution_required": "BOOLEAN   — TRUE when sub-component detail materially affects w_fixture_w. Default: FALSE. See Part 6.",
+    "component_note":                "STRING    — Optional. Populated when component_resolution_required is TRUE.",
+    "auto_populated":                "BOOLEAN   — TRUE when created by the auto-populate process (Part 7, Step 3).",
+    "ingestion_timestamp":           "TIMESTAMP — Set at entry creation. Immutable.",
+    "source_type":                   "ENUM      — CUSTOMER_SUPPLIED / AUTO_POPULATED / MANUAL.",
+    "catalog_version":               "STRING    — Semantic version of the catalog at time of Release. Null until Release.",
+    "status":                        "ENUM      — DRAFT / COMMIT / RELEASE / DEPRECATED. See Part 4.",
+    "promoted_by":                   "STRING    — Identity of the analyst who promoted to current status.",
+    "promoted_at":                   "TIMESTAMP — Timestamp of most recent status promotion.",
+    "changelog":                     "ARRAY     — Ordered log of all status changes and field edits. See Part 4.4.",
+    "session_refs":                  "ARRAY OF STRINGS — Session IDs where this entry has been applied.",
+    "notes":                         "STRING    — Optional. Free text for analyst commentary or audit notes."
+  }
+}
+```
+
+### Field-level rules
+
+**`w_fixture_w`**
+The wattage constant Stage 9 uses directly in the `P_load` calculation. Expressed in watts. Must reflect the baseline operational wattage of the equipment class at the specificity level of the entry — manufacturer/model specific when `manufacturer` and `model` are populated, class-level otherwise. Must be populated with a sourced, defensible value before `Release`.
+
+**`w_fixture_confidence`**
+Three levels. `HIGH` — manufacturer-specific data from a primary source (cut sheet, ENERGY STAR database, DLC listing). `MEDIUM` — class-level data from a recognized standard (DEER, ASHRAE). `LOW` — auto-populated from a secondary source or global catch-all default. Confidence level is surfaced in Inference Engine output and affects guarantee pool eligibility thresholds.
+
+**`component_resolution_required`**
+Set to `TRUE` when the class has sub-components whose variation materially affects `w_fixture_w` — for example, a fluorescent fixture where the wattage depends on ballast type, or a terminal unit where the load depends on coil configuration. When `TRUE`, the Inference Engine flags the observation for Enrichment Review if no component detail is available in the session record. Default is `FALSE`. See Part 6.
+
+**`auto_populated`**
+Set to `TRUE` when the entry was created by the Step 3 auto-populate process. Auto-populated entries are created at `Draft` status and routed to the catalog maintenance queue for human review. They must be promoted by an Analyst before reaching `Commit` or `Release`.
+
+**`ingestion_timestamp`**
+Set at entry creation. Immutable. The primary field enabling efficient catalog maintenance — entries can be sorted and filtered by ingestion date to identify stale assumptions, prioritize review, and track catalog growth over time.
+
+**`session_refs`**
+Populated by the Inference Engine each time an entry is applied to a session. Enables downstream impact assessment when an entry is revised — any session in `session_refs` may need recalculation if `w_fixture_w` changes between the version used and the current version.
+
+---
+
+## Part 4 — Version Control Lifecycle
+
+### 4.1 — Status States
+
+Every catalog entry exists in one of four states:
+
+| Status | Meaning | May be used by IE? |
+|--------|---------|-------------------|
+| `DRAFT` | Entry created; under review; not yet validated | No |
+| `COMMIT` | Entry reviewed and approved by Analyst; available for use in non-guarantee sessions | Yes — with `w_fixture_confidence` surfaced in output |
+| `RELEASE` | Entry fully validated; available for use in all sessions including guarantee calculations | Yes |
+| `DEPRECATED` | Entry retired; no longer available for new sessions; historical records preserved | No — historical only |
+
+### 4.2 — Promotion Rules
+
+**Draft → Commit**
+Required: all Required fields populated. `w_fixture_w` populated with a sourced value (even if `w_fixture_confidence` is `LOW`). Promoted by an Analyst. Changelog entry recorded.
+
+**Commit → Release**
+Required: all Release-required fields populated. `w_fixture_confidence` must be `MEDIUM` or `HIGH` — `LOW` confidence entries may not reach `Release`. Promoted by an Analyst with Third Switch review sign-off. Changelog entry recorded. `catalog_version` assigned.
+
+**Release → Deprecated**
+Required: a replacement entry at `Release` status exists for the same `equipment_class` (unless the class itself is being deprecated). Changelog entry recorded. All sessions in `session_refs` are flagged for review.
+
+> **Note:** Auto-populated entries are created at `Draft` and follow the same promotion path. They may not be promoted by an automated process — Analyst review is required at every promotion step.
+
+### 4.3 — Catalog Versioning
+
+The catalog as a whole is versioned using semantic versioning (`MAJOR.MINOR.PATCH`). A new catalog version is issued when one or more entries are promoted to `Release`. Facilitator pre-session configuration references a specific `catalog_version`, locking the wattage assumptions for that session at the time of configuration. Session records preserve the `catalog_version` used, ensuring historical calculations remain reproducible.
+
+**Version increment rules:**
+
+| Increment | Trigger |
+|-----------|---------|
+| `PATCH` | Correction to an existing `Release` entry that does not change `w_fixture_w` (source citation update, display name correction, notes addition) |
+| `MINOR` | New `equipment_class` key reaches `Release`, or `w_fixture_w` changes on an existing entry by less than 10% |
+| `MAJOR` | `w_fixture_w` changes on an existing entry by 10% or more, or an `equipment_class` key is deprecated |
+
+### 4.4 — Changelog Object
+
+Every status promotion and every field edit on a `Commit` or `Release` entry is recorded in the entry's `changelog` array. The changelog is append-only.
+
+```json
+{
+  "ChangelogEntry": {
+    "change_id":      "STRING    — UUID. Auto-generated.",
+    "timestamp":      "TIMESTAMP — Immutable. System-generated.",
+    "changed_by":     "STRING    — Analyst identity.",
+    "action":         "ENUM      — CREATED / PROMOTED / FIELD_EDIT / DEPRECATED.",
+    "from_status":    "ENUM      — Previous status. Null for CREATED.",
+    "to_status":      "ENUM      — New status. Null for FIELD_EDIT.",
+    "field_changed":  "STRING    — Field name. Populated for FIELD_EDIT only.",
+    "previous_value": "STRING    — Previous field value. Populated for FIELD_EDIT only.",
+    "new_value":      "STRING    — New field value. Populated for FIELD_EDIT only.",
+    "rationale":      "STRING    — Required for PROMOTED and FIELD_EDIT on Release entries. Optional otherwise."
+  }
+}
+```
+
+---
+
+## Part 5 — External Source Ingestion Rules
+
+### 5.1 — Supported External Sources
+
+The following external sources are supported for catalog entry population. These sources are never queried by the Inference Engine directly — they feed the catalog through the auto-populate process (Part 7, Step 3) or through manual Analyst ingestion.
+
+| Source | Type | `w_fixture_confidence` | Notes |
+|--------|------|----------------------|-------|
+| Manufacturer cut sheet | Primary | `HIGH` | Specific to manufacturer and model. Requires `manufacturer` and `model` fields populated. |
+| ENERGY STAR database | Primary | `HIGH` | Product-level certified data. Requires model number match. |
+| DLC (DesignLights Consortium) | Primary | `HIGH` | Product-level certified data for lighting. Requires DLC listing number. |
+| DEER | Deemed | `MEDIUM` | California jurisdiction. Class-level deemed values. DEER version must be recorded in `w_fixture_source_ref`. |
+| ASHRAE / building vintage standard | Standard | `MEDIUM` | Class-level defaults by building type and vintage. ASHRAE edition must be recorded in `w_fixture_source_ref`. |
+| Customer-supplied inventory | Customer | `MEDIUM`–`HIGH` | Fixture schedules, cut sheets, equipment inventories from Scoping or Enrichment. Source provenance recorded. `MEDIUM` unless corroborated by a primary source. |
+
+> **External source query priority** — when the auto-populate process queries external sources, the query priority among supported sources is engagement-configurable. This spec names the supported sources; it does not rank them. Priority order is set in Facilitator pre-session configuration and may be negotiated with the customer or sponsor.
+
+### 5.2 — Ingestion Field Mapping
+
+When an external source value is ingested into a catalog entry, the following fields must be populated at ingestion time:
+
+| CatalogEntry field | What to record |
+|-------------------|---------------|
+| `w_fixture_w` | The wattage value from the source, in watts |
+| `w_fixture_source` | The source name (e.g., `DEER`, `ENERGY_STAR`, `MANUFACTURER_CUT_SHEET`) |
+| `w_fixture_source_ref` | The specific citation — URL, database record ID, document name, DEER measure ID, ASHRAE edition and table reference |
+| `w_fixture_confidence` | Per the table in Part 5.1 |
+| `source_type` | `AUTO_POPULATED` if created by auto-populate process; `MANUAL` if created by Analyst; `CUSTOMER_SUPPLIED` if sourced from customer-submitted inventory |
+| `ingestion_timestamp` | System-generated at entry creation. Immutable. |
+| `auto_populated` | `TRUE` if auto-populate process; `FALSE` if manual |
+
+### 5.3 — Customer-Supplied Inventory
+
+Customer-supplied inventory (fixture schedules, cut sheets, equipment inventories submitted during Scoping or Enrichment Review) is ingested as a catalog source like any other. It does not create session-level overrides — it feeds the catalog, and the catalog is what the Inference Engine queries.
+
+Source provenance is always recorded. The `w_fixture_source_ref` field records the customer engagement and document reference so that the entry can be enriched with a higher-quality source over time, and so that audit challenges can be addressed without ambiguity about where the value came from.
+
+Customer-supplied data is assigned `w_fixture_confidence = MEDIUM` unless corroborated by a primary source (manufacturer cut sheet, ENERGY STAR, or DLC listing), in which case confidence may be elevated to `HIGH` by the Analyst at promotion time.
+
+---
+
+## Part 6 — Component Handling Policy
+
+### 6.1 — V1 Approach: Observable Class as Catalog Unit
+
+In V1, the catalog unit is the observable equipment class. The catalog does not model sub-component relationships. A fluorescent fixture is a catalog entry; its ballast type is not a separate catalog entry with a parent-child link to the fixture. A terminal unit is a catalog entry; its coil or boiler relationship is not modeled in the catalog schema.
+
+When sub-component detail materially affects the wattage assumption for an equipment class, this is surfaced through the `component_resolution_required` flag on the catalog entry, which triggers the Enrichment Review path in the Inference Engine when component detail is absent from the session record.
+
+This approach preserves calculation throughput at scale — the Inference Engine always has a catalog value to work with — while ensuring that high-scrutiny engagements can resolve to the appropriate level of detail through the existing Enrichment workflow.
+
+### 6.2 — component_resolution_required Behavior
+
+When `component_resolution_required == TRUE` on a catalog entry:
+
+- The Inference Engine applies the class-level `w_fixture_w` for the initial calculation pass
+- The observation is simultaneously flagged for Enrichment Review with a `COMPONENT_DETAIL_REQUIRED` annotation
+- If component detail is provided during Enrichment, the Analyst may update the wattage assumption for that specific finding before assumption lock. The updated value is recorded in the session record with source provenance — it does not automatically update the catalog entry, though the Analyst may submit it as a new `Draft` entry if warranted
+- If component detail is not resolved before assumption lock, the class-level value stands and the confidence level is surfaced in the report
+
+### 6.3 — Future Development: Component Registry
+
+A parent-child component registry — where equipment classes carry structured relationships to sub-components, each with their own wattage contributions and data sources — is noted as a planned future capability (Option C). This would enable the Inference Engine to traverse component graphs when detail is available, producing higher-precision calculations without requiring Enrichment Review intervention.
+
+This capability is not in scope for V1. It requires schema extension and Inference Engine changes that are deferred pending portfolio data accumulation and engagement experience with the `component_resolution_required` trigger pattern.
+
+---
+
+## Part 7 — Wattage Fallback Hierarchy
+
+This is the formal lookup sequence the Inference Engine must follow when resolving `W_fixture` for an equipment cluster. Steps are executed in order. The first step that produces a result terminates the sequence.
+
+### Step 1 — Catalog exact match
+
+Query `02_Measure_Catalog` for a `RELEASE`-status entry matching `equipment_class` + `manufacturer` + `model`. If found, use `w_fixture_w` from that entry. Record `catalog_entry_id` and `catalog_version` in the session record. Terminate sequence.
+
+### Step 2 — Catalog class-level match
+
+No exact match found. Query `02_Measure_Catalog` for a `RELEASE`-status entry matching `equipment_class` only (no manufacturer/model constraint). If found, use `w_fixture_w` from that entry. Record `catalog_entry_id`, `catalog_version`, and flag `class_level_match = TRUE` in the session record. Terminate sequence.
+
+A `COMMIT`-status entry may be used at this step when no `RELEASE` entry exists, subject to the constraint that `COMMIT`-status wattage values are excluded from guarantee pool calculations. The output record must surface the entry status.
+
+### Step 3 — Auto-populate from external source
+
+No catalog match at any level. The system queries the configured external sources in the engagement-specified priority order (see Part 5.1). On first match:
+
+- `w_fixture_w` is extracted from the source
+- A new `CatalogEntry` is created in `02_Measure_Catalog` at `DRAFT` status with `auto_populated = TRUE`, `source_type = AUTO_POPULATED`, `ingestion_timestamp` set, and all available source fields populated per Part 5.2
+- The new entry is routed to the catalog maintenance queue for Analyst review and promotion
+- The value is used for the current session with `auto_populated = TRUE` and `w_fixture_confidence = LOW` flagged in the session record
+- The entry is excluded from guarantee pool calculations pending promotion to `COMMIT` or `RELEASE`
+
+If no external source match is found across all configured sources, proceed to Step 4.
+
+### Step 4 — Global catch-all
+
+No catalog match and no external source match. The system assigns the minimum wattage value for the equipment class from an internal defaults table. Flags applied to the session record: `is_default_applied = TRUE`, `w_fixture_source = CATCH_ALL`, `w_fixture_confidence = LOW`. The observation is routed to Enrichment Review with a `WATTAGE_UNRESOLVED` flag. The value is excluded from guarantee pool calculations. No catalog entry is written until the value is manually confirmed by an Analyst.
+
+---
+
+## Part 8 — Inference Engine Interface Contract
+
+### 8.1 — What the Inference Engine Reads from the Catalog
+
+At Stage 2, the Inference Engine reads the `catalog_version` from the session's Facilitator pre-session configuration. All catalog lookups for that session use entries at or below that version. Entries promoted after the session `catalog_version` was locked do not affect in-flight sessions.
+
+At Stage 9, the Inference Engine reads `w_fixture_w` from the resolved catalog entry to compute `P_load`. It also reads `w_fixture_confidence` to determine guarantee pool eligibility. Entries with `w_fixture_confidence = LOW` are excluded from the guarantee savings pool regardless of other pipeline outputs.
+
+### 8.2 — What the Inference Engine Writes to the Catalog
+
+The Inference Engine writes to the catalog in one circumstance only: Step 3 of the wattage fallback hierarchy, when an auto-populated entry is created. All other catalog writes are performed by Analysts through the catalog maintenance process. The Inference Engine does not modify existing entries.
+
+The Inference Engine appends to `session_refs` on each entry it applies, regardless of which fallback step produced the match.
+
+### 8.3 — Catalog Version Locking
+
+The `catalog_version` used for a session is locked at the Analysis Boundary Gate alongside all other session configuration. It cannot be changed after the gate locks. If a catalog entry is revised after a session's gate has locked, the session record retains the version-locked values and is not automatically recalculated. Recalculation requires a session-level escalation.
+
+---
+
+## Part 9 — Open Items
+
+| # | Item | Target |
+|---|------|--------|
+| 1 | External source query priority — default ranking among DEER, ENERGY STAR, DLC, ASHRAE when no engagement-specific configuration is set | Before first auto-populate event in production |
+| 2 | `COMMIT`-status entries in guarantee calculations — current rule excludes them; confirm whether a confidence-weighted inclusion path is warranted | Before first guarantee engagement |
+| 3 | Component registry (Option C) — parent-child component relationship schema and IE traversal logic | Post-portfolio data accumulation; V2 candidate |
+| 4 | `session_refs` write performance — high-volume sessions may create write contention on popular catalog entries; implementation should evaluate batching | Engineering review before production deployment |
+| 5 | SEM Compliance Column — DEER measure ID mapping in `w_fixture_source_ref` for Willdan/CA SEM engagements | Before next SEM engagement |
+| 6 | Wattage fallback hierarchy — 10% threshold for MAJOR version increment is provisional; confirm or adjust after first catalog maintenance cycle | After first catalog maintenance cycle |
+
+---
+
+*Deep//Walk by Third Switch — Assurance at Scale*
+*© 2026 Third Switch, LLC.*
+*This document is internal reference. Not for external distribution without review.*
